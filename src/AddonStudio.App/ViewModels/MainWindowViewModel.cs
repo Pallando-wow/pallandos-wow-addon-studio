@@ -51,6 +51,11 @@ public sealed record CollectorMapRow(
     int Observations,
     string Builds);
 
+public sealed record CollectorValidationIssueRow(
+    string Severity,
+    string Code,
+    string Message);
+
 public partial class MainWindowViewModel(
     AddonProjectService addonProjectService,
     IStudioSettingsStore settingsStore,
@@ -111,6 +116,16 @@ public partial class MainWindowViewModel(
 
     [ObservableProperty]
     private string collectorRunSummary = string.Empty;
+
+    [ObservableProperty]
+    private string collectorValidationSummary =
+        "Not validated.";
+
+    [ObservableProperty]
+    private bool collectorValidationReady;
+
+    [ObservableProperty]
+    private bool hasCollectorValidationIssues;
 
     [ObservableProperty]
     private int workspaceTabIndex;
@@ -200,6 +215,8 @@ public partial class MainWindowViewModel(
     public ObservableCollection<CollectorEventRow> CollectorEvents { get; } = [];
 
     public ObservableCollection<CollectorMapRow> CollectorMaps { get; } = [];
+
+    public ObservableCollection<CollectorValidationIssueRow> CollectorValidationIssues { get; } = [];
 
     public bool HasCurrentProject =>
         !string.IsNullOrWhiteSpace(CurrentProjectName);
@@ -920,13 +937,41 @@ public partial class MainWindowViewModel(
                 $"{snapshot.Sessions} session(s) · " +
                 $"{snapshot.TotalObservations} observation(s)";
 
+            var validation =
+                PallandoCollectorValidator.Validate(snapshot);
+
+            CollectorValidationIssues.Clear();
+
+            foreach (var issue in validation.Issues)
+            {
+                CollectorValidationIssues.Add(
+                    new CollectorValidationIssueRow(
+                        issue.Severity.ToString(),
+                        issue.Code,
+                        issue.Message));
+            }
+
+            CollectorValidationReady = validation.IsReady;
+            HasCollectorValidationIssues =
+                validation.Issues.Count > 0;
+
+            CollectorValidationSummary =
+                validation.IsReady
+                    ? validation.WarningCount == 0
+                        ? "Passed · ready for further processing"
+                        : $"Passed with {validation.WarningCount} warning(s) · review before further processing"
+                    : $"Blocked · {validation.ErrorCount} error(s), {validation.WarningCount} warning(s)";
+
             HasCollectorImport = true;
 
             StatusMessage =
                 $"Collector data imported: " +
                 $"{snapshot.Apis.Count} API(s), " +
                 $"{snapshot.Events.Count} event(s), " +
-                $"{snapshot.Maps.Count} map(s).";
+                $"{snapshot.Maps.Count} map(s). " +
+                (validation.IsReady
+                    ? "Validation passed."
+                    : $"Validation found {validation.ErrorCount} error(s).");
         });
     }
 
@@ -1005,10 +1050,15 @@ public partial class MainWindowViewModel(
         CollectorApis.Clear();
         CollectorEvents.Clear();
         CollectorMaps.Clear();
+        CollectorValidationIssues.Clear();
         HasCollectorImport = false;
+        CollectorValidationReady = false;
+        HasCollectorValidationIssues = false;
         CollectorClientSummary =
             "No collector data loaded.";
         CollectorRunSummary = string.Empty;
+        CollectorValidationSummary =
+            "Not validated.";
     }
 
     private static string FormatBuilds(
