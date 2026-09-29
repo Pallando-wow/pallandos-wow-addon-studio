@@ -137,7 +137,7 @@ public sealed class PallandoCollectorReaderTests
             Assert.Equal(1415, map.ParentMapId);
             Assert.Equal(2121, map.MapArtId);
             Assert.Equal(14, map.ObservationCount);
-            Assert.Equal([70058], map.Builds);
+            Assert.Equal(new[] { 70058 }, map.Builds);
         }
         finally
         {
