@@ -3,6 +3,7 @@ using AddonStudio.Application.Documents;
 using AddonStudio.Application.Projects;
 using AddonStudio.Application.Publishing;
 using AddonStudio.Application.Settings;
+using AddonStudio.Application.WowData;
 using AddonStudio.Core.Publishing;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -27,13 +28,37 @@ public enum MarkdownEditorMode
     Split
 }
 
+public sealed record CollectorApiRow(
+    string Key,
+    string Availability,
+    string ValueType,
+    int Observations,
+    string Builds);
+
+public sealed record CollectorEventRow(
+    string Key,
+    string Support,
+    string Observed,
+    int Observations,
+    string Builds);
+
+public sealed record CollectorMapRow(
+    int Id,
+    string Name,
+    string Type,
+    string Parent,
+    string Size,
+    int Observations,
+    string Builds);
+
 public partial class MainWindowViewModel(
     AddonProjectService addonProjectService,
     IStudioSettingsStore settingsStore,
     ProjectCatalogService projectCatalogService,
     ProjectExplorerService projectExplorerService,
     MarkdownDocumentService markdownDocumentService,
-    PublishingContentService publishingContentService) : ViewModelBase
+    PublishingContentService publishingContentService,
+    IPallandoCollectorReader pallandoCollectorReader) : ViewModelBase
 {
     [ObservableProperty]
     private StudioSidebar sidebar;
@@ -43,6 +68,9 @@ public partial class MainWindowViewModel(
 
     [ObservableProperty]
     private string importSourceDirectory = string.Empty;
+
+    [ObservableProperty]
+    private string collectorSourceFile = string.Empty;
 
     [ObservableProperty]
     private string statusMessage = "Ready";
@@ -70,6 +98,19 @@ public partial class MainWindowViewModel(
 
     [ObservableProperty]
     private bool isImportAddonAction;
+
+    [ObservableProperty]
+    private bool isImportCollectorAction;
+
+    [ObservableProperty]
+    private bool hasCollectorImport;
+
+    [ObservableProperty]
+    private string collectorClientSummary =
+        "No collector data loaded.";
+
+    [ObservableProperty]
+    private string collectorRunSummary = string.Empty;
 
     [ObservableProperty]
     private int workspaceTabIndex;
@@ -118,6 +159,7 @@ public partial class MainWindowViewModel(
         ProjectExplorerService projectExplorerService,
         MarkdownDocumentService markdownDocumentService,
         PublishingContentService publishingContentService,
+        IPallandoCollectorReader pallandoCollectorReader,
         bool initialize = true)
         : this(
             addonProjectService,
@@ -125,7 +167,8 @@ public partial class MainWindowViewModel(
             projectCatalogService,
             projectExplorerService,
             markdownDocumentService,
-            publishingContentService)
+            publishingContentService,
+            pallandoCollectorReader)
     {
         var settings = settingsStore.Load();
 
@@ -151,6 +194,12 @@ public partial class MainWindowViewModel(
     public ObservableCollection<ProjectTreeItem> CurrentProjectTree { get; } = [];
 
     public ObservableCollection<string> CurrentRuntimeAddons { get; } = [];
+
+    public ObservableCollection<CollectorApiRow> CollectorApis { get; } = [];
+
+    public ObservableCollection<CollectorEventRow> CollectorEvents { get; } = [];
+
+    public ObservableCollection<CollectorMapRow> CollectorMaps { get; } = [];
 
     public bool HasCurrentProject =>
         !string.IsNullOrWhiteSpace(CurrentProjectName);
@@ -359,6 +408,7 @@ public partial class MainWindowViewModel(
         ActionTabTitle = "New Addon";
         IsCreateAddonAction = true;
         IsImportAddonAction = false;
+        IsImportCollectorAction = false;
         HasActionTab = true;
         WorkspaceTabIndex = 1;
     }
@@ -376,6 +426,26 @@ public partial class MainWindowViewModel(
         ActionTabTitle = "Import Existing Addon";
         IsCreateAddonAction = false;
         IsImportAddonAction = true;
+        IsImportCollectorAction = false;
+        HasActionTab = true;
+        WorkspaceTabIndex = 1;
+    }
+
+    [RelayCommand]
+    private void OpenCollectorImport()
+    {
+        if (SetupRequired)
+        {
+            ShowSettings();
+            return;
+        }
+
+        CollectorSourceFile = string.Empty;
+        ClearCollectorImport();
+        ActionTabTitle = "Collector Data";
+        IsCreateAddonAction = false;
+        IsImportAddonAction = false;
+        IsImportCollectorAction = true;
         HasActionTab = true;
         WorkspaceTabIndex = 1;
     }
@@ -386,6 +456,7 @@ public partial class MainWindowViewModel(
         HasActionTab = false;
         IsCreateAddonAction = false;
         IsImportAddonAction = false;
+        IsImportCollectorAction = false;
         WorkspaceTabIndex = 0;
     }
 
@@ -776,6 +847,89 @@ public partial class MainWindowViewModel(
         });
     }
 
+    public async Task ImportCollectorAsync()
+    {
+        await RunOperationAsync(async () =>
+        {
+            var snapshot =
+                await pallandoCollectorReader.ReadAsync(
+                    CollectorSourceFile);
+
+            CollectorApis.Clear();
+
+            foreach (var api in snapshot.Apis)
+            {
+                CollectorApis.Add(
+                    new CollectorApiRow(
+                        api.Key,
+                        api.Available ? "Available" : "Missing",
+                        string.IsNullOrWhiteSpace(api.ValueType)
+                            ? "—"
+                            : api.ValueType,
+                        api.ObservationCount,
+                        FormatBuilds(api.Builds)));
+            }
+
+            CollectorEvents.Clear();
+
+            foreach (var eventObservation in snapshot.Events)
+            {
+                CollectorEvents.Add(
+                    new CollectorEventRow(
+                        eventObservation.Key,
+                        eventObservation.Supported
+                            ? "Supported"
+                            : "Unsupported",
+                        eventObservation.Observed
+                            ? "Yes"
+                            : "No",
+                        eventObservation.ObservationCount,
+                        FormatBuilds(eventObservation.Builds)));
+            }
+
+            CollectorMaps.Clear();
+
+            foreach (var map in snapshot.Maps)
+            {
+                CollectorMaps.Add(
+                    new CollectorMapRow(
+                        map.Id,
+                        string.IsNullOrWhiteSpace(map.Name)
+                            ? "—"
+                            : map.Name,
+                        map.MapType?.ToString() ?? "—",
+                        map.ParentMapId?.ToString() ?? "—",
+                        FormatMapSize(
+                            map.WorldWidth,
+                            map.WorldHeight),
+                        map.ObservationCount,
+                        FormatBuilds(map.Builds)));
+            }
+
+            CollectorClientSummary =
+                $"{snapshot.Client.Id} · " +
+                $"{snapshot.Client.Version} · " +
+                $"build {snapshot.Client.Build} · " +
+                $"Interface {snapshot.Client.Interface}";
+
+            CollectorRunSummary =
+                $"Collector {snapshot.CollectorVersion} · " +
+                $"schema {snapshot.StorageSchemaVersion}/" +
+                $"{snapshot.ExportSchemaVersion} · " +
+                $"{snapshot.Locale} · " +
+                $"{snapshot.Sessions} session(s) · " +
+                $"{snapshot.TotalObservations} observation(s)";
+
+            HasCollectorImport = true;
+
+            StatusMessage =
+                $"Collector data imported: " +
+                $"{snapshot.Apis.Count} API(s), " +
+                $"{snapshot.Events.Count} event(s), " +
+                $"{snapshot.Maps.Count} map(s).";
+        });
+    }
+
     partial void OnSidebarChanged(StudioSidebar value)
     {
         OnPropertyChanged(nameof(IsStartSidebar));
@@ -845,6 +999,30 @@ public partial class MainWindowViewModel(
         OnPropertyChanged(nameof(HasCurrentProject));
         OnPropertyChanged(nameof(HasNoCurrentProject));
     }
+
+    private void ClearCollectorImport()
+    {
+        CollectorApis.Clear();
+        CollectorEvents.Clear();
+        CollectorMaps.Clear();
+        HasCollectorImport = false;
+        CollectorClientSummary =
+            "No collector data loaded.";
+        CollectorRunSummary = string.Empty;
+    }
+
+    private static string FormatBuilds(
+        IReadOnlyList<int> builds) =>
+        builds.Count == 0
+            ? "—"
+            : string.Join(", ", builds);
+
+    private static string FormatMapSize(
+        double? width,
+        double? height) =>
+        width is null || height is null
+            ? "—"
+            : $"{width.Value:0.##} × {height.Value:0.##}";
 
     private void ClearMarkdownDocument()
     {
