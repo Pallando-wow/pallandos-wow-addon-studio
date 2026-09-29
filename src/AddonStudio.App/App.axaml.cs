@@ -8,6 +8,7 @@ using AddonStudio.Application.Projects;
 using AddonStudio.Application.Publishing;
 using AddonStudio.Data.Projects;
 using AddonStudio.Data.Settings;
+using AddonStudio.Wow.Collector;
 using AddonStudio.Wow.Projects;
 
 namespace AddonStudio.App;
@@ -44,6 +45,9 @@ public partial class App : Avalonia.Application
             var publishingContentService =
                 new PublishingContentService();
 
+            var pallandoCollectorReader =
+                new PallandoCollectorReader();
+
             var settingsStore =
                 new JsonStudioSettingsStore();
 
@@ -56,6 +60,7 @@ public partial class App : Avalonia.Application
                     projectExplorerService,
                     markdownDocumentService,
                     publishingContentService,
+                    pallandoCollectorReader,
                     initialize: true),
             };
         }

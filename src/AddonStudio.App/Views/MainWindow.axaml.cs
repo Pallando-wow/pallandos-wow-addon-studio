@@ -83,6 +83,19 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void ChooseCollectorSource_Click(
+        object? sender,
+        RoutedEventArgs e)
+    {
+        var path = await PickFileAsync(
+            "Select PallandoDataCollector SavedVariables");
+
+        if (path is not null && ViewModel is not null)
+        {
+            ViewModel.CollectorSourceFile = path;
+        }
+    }
+
     private async void SaveSettings_Click(
         object? sender,
         RoutedEventArgs e)
@@ -137,6 +150,16 @@ public partial class MainWindow : Window
         if (ViewModel is not null)
         {
             await ViewModel.ImportAddonAsync();
+        }
+    }
+
+    private async void ImportCollector_Click(
+        object? sender,
+        RoutedEventArgs e)
+    {
+        if (ViewModel is not null)
+        {
+            await ViewModel.ImportCollectorAsync();
         }
     }
 
@@ -656,6 +679,28 @@ public partial class MainWindow : Window
         NumberedList,
         BulletList,
         Quote
+    }
+
+    private async Task<string?> PickFileAsync(string title)
+    {
+        var files = await StorageProvider.OpenFilePickerAsync(
+            new FilePickerOpenOptions
+            {
+                Title = title,
+                AllowMultiple = false,
+                FileTypeFilter =
+                [
+                    new FilePickerFileType(
+                        "Lua SavedVariables")
+                    {
+                        Patterns = ["*.lua"]
+                    }
+                ]
+            });
+
+        return files.Count == 0
+            ? null
+            : files[0].TryGetLocalPath();
     }
 
     private async Task<string?> PickFolderAsync(string title)
