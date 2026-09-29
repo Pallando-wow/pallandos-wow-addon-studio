@@ -99,6 +99,8 @@ public sealed class PallandoCollectorValidatorTests
         var snapshot =
             CreateValidSnapshot() with
             {
+                Apis = [],
+                Events = [],
                 Maps =
                 [
                     new PallandoCollectorMapObservation(
@@ -117,7 +119,7 @@ public sealed class PallandoCollectorValidatorTests
                         4,
                         [])
                 ],
-                TotalObservations = 6
+                TotalObservations = 4
             };
 
         var result =
