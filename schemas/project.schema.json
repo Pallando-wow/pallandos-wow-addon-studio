@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pallando-wow.github.io/addon-studio/schemas/project.schema.json",
+  "title": "Pallando's WoW Addon Studio project manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "project", "runtime"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "type"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9.-]*$" },
+        "name": { "type": "string", "minLength": 1 },
+        "type": { "enum": ["addon", "library"] }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primaryAddon", "addons"],
+      "properties": {
+        "primaryAddon": { "type": "string", "minLength": 1 },
+        "addons": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "components": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "targets"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9.-]*$" },
+          "targets": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["runtimeAddon", "path"],
+              "properties": {
+                "runtimeAddon": { "type": "string", "minLength": 1 },
+                "path": { "type": "string", "minLength": 1 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "release": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "packageName": { "type": "string", "minLength": 1 }
+      }
+    },
+    "curseForge": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "projectId": { "type": "string", "minLength": 1 },
+        "slug": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

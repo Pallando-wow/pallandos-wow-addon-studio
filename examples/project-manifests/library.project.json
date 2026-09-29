@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "project": {
+    "id": "libsemanticdata",
+    "name": "LibSemanticData",
+    "type": "library"
+  },
+  "runtime": {
+    "primaryAddon": "LibSemanticData-1.0",
+    "addons": ["LibSemanticData-1.0"]
+  }
+}

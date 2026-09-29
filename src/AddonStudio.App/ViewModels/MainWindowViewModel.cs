@@ -1,0 +1,1054 @@
+using System.Collections.ObjectModel;
+using AddonStudio.Application.Documents;
+using AddonStudio.Application.Projects;
+using AddonStudio.Application.Publishing;
+using AddonStudio.Application.Settings;
+using AddonStudio.Core.Publishing;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+
+namespace AddonStudio.App.ViewModels;
+
+public enum StudioSidebar
+{
+    Start,
+    Explorer,
+    Components,
+    Git,
+    Publishing,
+    CurseForge,
+    Settings
+}
+
+public enum MarkdownEditorMode
+{
+    Editor,
+    Preview,
+    Split
+}
+
+public partial class MainWindowViewModel(
+    AddonProjectService addonProjectService,
+    IStudioSettingsStore settingsStore,
+    ProjectCatalogService projectCatalogService,
+    ProjectExplorerService projectExplorerService,
+    MarkdownDocumentService markdownDocumentService,
+    PublishingContentService publishingContentService) : ViewModelBase
+{
+    [ObservableProperty]
+    private StudioSidebar sidebar;
+
+    [ObservableProperty]
+    private string newAddonName = string.Empty;
+
+    [ObservableProperty]
+    private string importSourceDirectory = string.Empty;
+
+    [ObservableProperty]
+    private string statusMessage = "Ready";
+
+    [ObservableProperty]
+    private string? currentProjectName;
+
+    [ObservableProperty]
+    private string? currentProjectDirectory;
+
+    [ObservableProperty]
+    private string? currentProjectTypeName;
+
+    [ObservableProperty]
+    private string? currentPrimaryAddon;
+
+    [ObservableProperty]
+    private bool hasActionTab;
+
+    [ObservableProperty]
+    private string actionTabTitle = string.Empty;
+
+    [ObservableProperty]
+    private bool isCreateAddonAction;
+
+    [ObservableProperty]
+    private bool isImportAddonAction;
+
+    [ObservableProperty]
+    private int workspaceTabIndex;
+
+    [ObservableProperty]
+    private bool isBusy;
+
+    [ObservableProperty]
+    private string projectRoot = string.Empty;
+
+    [ObservableProperty]
+    private string wowForeverAddOnsPath = string.Empty;
+
+    [ObservableProperty]
+    private bool setupRequired;
+
+    [ObservableProperty]
+    private ProjectCatalogEntry? selectedProject;
+
+    [ObservableProperty]
+    private ProjectTreeItem? selectedProjectTreeItem;
+
+    [ObservableProperty]
+    private string? markdownDocumentPath;
+
+    [ObservableProperty]
+    private string markdownText = string.Empty;
+
+    [ObservableProperty]
+    private bool hasMarkdownDocument;
+
+    [ObservableProperty]
+    private bool isMarkdownDirty;
+
+    [ObservableProperty]
+    private MarkdownEditorMode markdownEditorMode =
+        MarkdownEditorMode.Split;
+
+    private string savedMarkdownText = string.Empty;
+    private PublishingContentKind? markdownPublishingKind;
+
+    public MainWindowViewModel(
+        AddonProjectService addonProjectService,
+        IStudioSettingsStore settingsStore,
+        ProjectCatalogService projectCatalogService,
+        ProjectExplorerService projectExplorerService,
+        MarkdownDocumentService markdownDocumentService,
+        PublishingContentService publishingContentService,
+        bool initialize = true)
+        : this(
+            addonProjectService,
+            settingsStore,
+            projectCatalogService,
+            projectExplorerService,
+            markdownDocumentService,
+            publishingContentService)
+    {
+        var settings = settingsStore.Load();
+
+        projectRoot = settings.ProjectRoot;
+        wowForeverAddOnsPath = settings.WowForeverAddOnsPath;
+        setupRequired = !StudioSettingsValidator.IsComplete(settings);
+        sidebar = setupRequired
+            ? StudioSidebar.Settings
+            : StudioSidebar.Start;
+
+        if (setupRequired)
+        {
+            statusMessage = "Initial setup required";
+        }
+    }
+
+    public ObservableCollection<ProjectCatalogEntry> Projects { get; } = [];
+
+    public ObservableCollection<UnmanagedProjectFolder> UnmanagedFolders { get; } = [];
+
+    public ObservableCollection<string> ProjectCatalogIssues { get; } = [];
+
+    public ObservableCollection<ProjectTreeItem> CurrentProjectTree { get; } = [];
+
+    public ObservableCollection<string> CurrentRuntimeAddons { get; } = [];
+
+    public bool HasCurrentProject =>
+        !string.IsNullOrWhiteSpace(CurrentProjectName);
+
+    public bool HasNoCurrentProject => !HasCurrentProject;
+
+    public bool IsSetupComplete => !SetupRequired;
+
+    public bool HasProjects => Projects.Count > 0;
+
+    public bool HasNoProjects => !HasProjects;
+
+    public int ManagedProjectCount => Projects.Count;
+
+    public int RuntimeAddonCount =>
+        Projects.Sum(project => project.RuntimeAddonCount);
+
+    public int UnmanagedFolderCount => UnmanagedFolders.Count;
+
+    public bool HasUnmanagedFolders =>
+        UnmanagedFolders.Count > 0;
+
+    public bool HasProjectCatalogIssues =>
+        ProjectCatalogIssues.Count > 0;
+
+    public bool CanOpenSelectedProject =>
+        SelectedProject is not null;
+
+    public bool HasSelectedMarkdownFile =>
+        SelectedProjectTreeItem is
+        {
+            IsDirectory: false
+        } item &&
+        string.Equals(
+            Path.GetExtension(item.FullPath),
+            ".md",
+            StringComparison.OrdinalIgnoreCase);
+
+    public string MarkdownDocumentName =>
+        string.IsNullOrWhiteSpace(MarkdownDocumentPath)
+            ? "Markdown"
+            : Path.GetFileName(MarkdownDocumentPath);
+
+    public string MarkdownDocumentTabTitle =>
+        IsMarkdownDirty
+            ? $"{MarkdownDocumentName} *"
+            : MarkdownDocumentName;
+
+    public bool IsMarkdownEditorMode =>
+        MarkdownEditorMode == MarkdownEditorMode.Editor;
+
+    public bool IsMarkdownPreviewMode =>
+        MarkdownEditorMode == MarkdownEditorMode.Preview;
+
+    public bool IsMarkdownSplitMode =>
+        MarkdownEditorMode == MarkdownEditorMode.Split;
+
+    public bool IsMarkdownEditingMode =>
+        MarkdownEditorMode != MarkdownEditorMode.Preview;
+
+    public bool CanCloseMarkdownDocument =>
+        HasMarkdownDocument && !IsMarkdownDirty;
+
+    public string PublishingSummaryFileName =>
+        PublishingContentLayout.GetFileName(
+            PublishingContentKind.Summary);
+
+    public string PublishingDescriptionFileName =>
+        PublishingContentLayout.GetFileName(
+            PublishingContentKind.Description);
+
+    public string PublishingChangelogFileName =>
+        PublishingContentLayout.GetFileName(
+            PublishingContentKind.Changelog);
+
+    public string PublishingSummaryStatus =>
+        GetPublishingStatus(
+            PublishingContentKind.Summary);
+
+    public string PublishingDescriptionStatus =>
+        GetPublishingStatus(
+            PublishingContentKind.Description);
+
+    public string PublishingChangelogStatus =>
+        GetPublishingStatus(
+            PublishingContentKind.Changelog);
+
+    public bool IsStartSidebar => Sidebar == StudioSidebar.Start;
+    public bool IsExplorerSidebar => Sidebar == StudioSidebar.Explorer;
+    public bool IsComponentsSidebar => Sidebar == StudioSidebar.Components;
+    public bool IsGitSidebar => Sidebar == StudioSidebar.Git;
+    public bool IsPublishingSidebar => Sidebar == StudioSidebar.Publishing;
+    public bool IsCurseForgeSidebar => Sidebar == StudioSidebar.CurseForge;
+    public bool IsSettingsSidebar => Sidebar == StudioSidebar.Settings;
+
+    public string WorkspaceTitle => Sidebar switch
+    {
+        StudioSidebar.Start => "Start",
+        StudioSidebar.Explorer => "Explorer",
+        StudioSidebar.Components => "Components",
+        StudioSidebar.Git => "Git",
+        StudioSidebar.Publishing => "Publishing",
+        StudioSidebar.CurseForge => "CurseForge",
+        StudioSidebar.Settings => "Settings",
+        _ => "Workspace"
+    };
+
+    public async Task InitializeAsync()
+    {
+        if (IsSetupComplete)
+        {
+            await RefreshProjectsAsync();
+        }
+    }
+
+    [RelayCommand]
+    private void ShowStart()
+    {
+        if (SetupRequired)
+        {
+            ShowSettings();
+            return;
+        }
+
+        Sidebar = StudioSidebar.Start;
+        WorkspaceTabIndex = 0;
+    }
+
+    [RelayCommand]
+    private void ShowExplorer()
+    {
+        if (SetupRequired)
+        {
+            return;
+        }
+
+        Sidebar = StudioSidebar.Explorer;
+        WorkspaceTabIndex = 0;
+    }
+
+    [RelayCommand]
+    private void ShowComponents()
+    {
+        if (SetupRequired)
+        {
+            return;
+        }
+
+        Sidebar = StudioSidebar.Components;
+        WorkspaceTabIndex = 0;
+    }
+
+    [RelayCommand]
+    private void ShowGit()
+    {
+        if (SetupRequired)
+        {
+            return;
+        }
+
+        Sidebar = StudioSidebar.Git;
+        WorkspaceTabIndex = 0;
+    }
+
+    [RelayCommand]
+    private void ShowPublishing()
+    {
+        if (SetupRequired)
+        {
+            return;
+        }
+
+        Sidebar = StudioSidebar.Publishing;
+        WorkspaceTabIndex = 0;
+        RaisePublishingProperties();
+    }
+
+    [RelayCommand]
+    private void ShowCurseForge()
+    {
+        if (SetupRequired)
+        {
+            return;
+        }
+
+        Sidebar = StudioSidebar.CurseForge;
+        WorkspaceTabIndex = 0;
+    }
+
+    [RelayCommand]
+    private void ShowSettings()
+    {
+        Sidebar = StudioSidebar.Settings;
+        WorkspaceTabIndex = 0;
+    }
+
+    [RelayCommand]
+    private void OpenCreateAddon()
+    {
+        if (SetupRequired)
+        {
+            ShowSettings();
+            return;
+        }
+
+        ActionTabTitle = "New Addon";
+        IsCreateAddonAction = true;
+        IsImportAddonAction = false;
+        HasActionTab = true;
+        WorkspaceTabIndex = 1;
+    }
+
+    [RelayCommand]
+    private void OpenImportAddon()
+    {
+        if (SetupRequired)
+        {
+            ShowSettings();
+            return;
+        }
+
+        ImportSourceDirectory = string.Empty;
+        ActionTabTitle = "Import Existing Addon";
+        IsCreateAddonAction = false;
+        IsImportAddonAction = true;
+        HasActionTab = true;
+        WorkspaceTabIndex = 1;
+    }
+
+    [RelayCommand]
+    private void CloseActionTab()
+    {
+        HasActionTab = false;
+        IsCreateAddonAction = false;
+        IsImportAddonAction = false;
+        WorkspaceTabIndex = 0;
+    }
+
+    public async Task SaveSettingsAsync()
+    {
+        var settings = new StudioSettings
+        {
+            ProjectRoot = ProjectRoot.Trim(),
+            WowForeverAddOnsPath = WowForeverAddOnsPath.Trim()
+        };
+
+        var issues = StudioSettingsValidator.Validate(settings);
+
+        if (issues.Count > 0)
+        {
+            StatusMessage = $"Settings error: {issues[0]}";
+            SetupRequired = true;
+            return;
+        }
+
+        settingsStore.Save(settings);
+
+        ProjectRoot = Path.GetFullPath(settings.ProjectRoot);
+        WowForeverAddOnsPath = Path.GetFullPath(settings.WowForeverAddOnsPath);
+        SetupRequired = false;
+        Sidebar = StudioSidebar.Start;
+        WorkspaceTabIndex = 0;
+
+        await RefreshProjectsAsync();
+
+        StatusMessage = "Settings saved";
+    }
+
+    public void ResetSettings()
+    {
+        settingsStore.Delete();
+
+        ProjectRoot = string.Empty;
+        WowForeverAddOnsPath = string.Empty;
+        SetupRequired = true;
+        Sidebar = StudioSidebar.Settings;
+        WorkspaceTabIndex = 0;
+        HasActionTab = false;
+
+        Projects.Clear();
+        UnmanagedFolders.Clear();
+        ProjectCatalogIssues.Clear();
+        CurrentProjectTree.Clear();
+        CurrentRuntimeAddons.Clear();
+        ClearMarkdownDocument();
+
+        SelectedProject = null;
+        CurrentProjectName = null;
+        CurrentProjectDirectory = null;
+        CurrentProjectTypeName = null;
+        CurrentPrimaryAddon = null;
+
+        RaiseProjectCatalogProperties();
+
+        StatusMessage =
+            "Settings reset. Initial setup required.";
+    }
+
+    public async Task RefreshProjectsAsync()
+    {
+        if (SetupRequired)
+        {
+            return;
+        }
+
+        await RunOperationAsync(async () =>
+        {
+            var result = await projectCatalogService.DiscoverAsync(
+                ProjectRoot);
+
+            var selectedDirectory =
+                SelectedProject?.ProjectDirectory;
+
+            Projects.Clear();
+
+            foreach (var project in result.Projects)
+            {
+                Projects.Add(project);
+            }
+
+            UnmanagedFolders.Clear();
+
+            foreach (var folder in result.UnmanagedFolders)
+            {
+                UnmanagedFolders.Add(folder);
+            }
+
+            ProjectCatalogIssues.Clear();
+
+            foreach (var issue in result.Issues)
+            {
+                ProjectCatalogIssues.Add(
+                    $"{Path.GetFileName(issue.ProjectDirectory)}: {issue.Message}");
+            }
+
+            SelectedProject = Projects.FirstOrDefault(
+                project => string.Equals(
+                    project.ProjectDirectory,
+                    selectedDirectory,
+                    StringComparison.OrdinalIgnoreCase))
+                ?? Projects.FirstOrDefault();
+
+            RaiseProjectCatalogProperties();
+
+            StatusMessage =
+                $"{result.Projects.Count} managed project(s), " +
+                $"{result.UnmanagedFolders.Count} unmanaged folder(s), " +
+                $"{result.Issues.Count} invalid project(s).";
+        });
+    }
+
+    public async Task OpenSelectedProjectAsync()
+    {
+        if (SelectedProject is null)
+        {
+            StatusMessage = "Select a project first.";
+            return;
+        }
+
+        await OpenProjectAsync(SelectedProject);
+    }
+
+    public async Task OpenSelectedProjectTreeItemAsync()
+    {
+        if (CurrentProjectDirectory is null ||
+            SelectedProjectTreeItem is null)
+        {
+            return;
+        }
+
+        if (SelectedProjectTreeItem.IsDirectory)
+        {
+            return;
+        }
+
+        if (!HasSelectedMarkdownFile)
+        {
+            StatusMessage =
+                "This editor foundation currently opens Markdown (.md) files.";
+            return;
+        }
+
+        if (IsMarkdownDirty &&
+            !string.Equals(
+                MarkdownDocumentPath,
+                SelectedProjectTreeItem.FullPath,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            StatusMessage =
+                "Save or revert the current Markdown document before opening another file.";
+            return;
+        }
+
+        await RunOperationAsync(async () =>
+        {
+            var document = await markdownDocumentService.OpenAsync(
+                CurrentProjectDirectory,
+                SelectedProjectTreeItem.FullPath);
+
+            markdownPublishingKind = null;
+            savedMarkdownText = document.Text;
+            MarkdownDocumentPath = document.FilePath;
+            MarkdownText = document.Text;
+            HasMarkdownDocument = true;
+            IsMarkdownDirty = false;
+            MarkdownEditorMode = MarkdownEditorMode.Split;
+            WorkspaceTabIndex = 2;
+
+            StatusMessage =
+                $"Opened '{document.DisplayName}'.";
+        });
+    }
+
+    [RelayCommand]
+    private Task OpenPublishingSummaryAsync() =>
+        OpenPublishingContentAsync(
+            PublishingContentKind.Summary);
+
+    [RelayCommand]
+    private Task OpenPublishingDescriptionAsync() =>
+        OpenPublishingContentAsync(
+            PublishingContentKind.Description);
+
+    [RelayCommand]
+    private Task OpenPublishingChangelogAsync() =>
+        OpenPublishingContentAsync(
+            PublishingContentKind.Changelog);
+
+    [RelayCommand]
+    private void ShowMarkdownEditor() =>
+        MarkdownEditorMode = MarkdownEditorMode.Editor;
+
+    [RelayCommand]
+    private void ShowMarkdownPreview() =>
+        MarkdownEditorMode = MarkdownEditorMode.Preview;
+
+    [RelayCommand]
+    private void ShowMarkdownSplit() =>
+        MarkdownEditorMode = MarkdownEditorMode.Split;
+
+    [RelayCommand]
+    private async Task SaveMarkdownDocumentAsync()
+    {
+        if (!HasMarkdownDocument ||
+            CurrentProjectDirectory is null ||
+            MarkdownDocumentPath is null)
+        {
+            return;
+        }
+
+        await RunOperationAsync(async () =>
+        {
+            if (markdownPublishingKind is PublishingContentKind kind)
+            {
+                await publishingContentService.WriteAsync(
+                    CurrentProjectDirectory,
+                    kind,
+                    MarkdownText);
+
+                RefreshCurrentProjectTree();
+                RaisePublishingProperties();
+            }
+            else
+            {
+                await markdownDocumentService.SaveAsync(
+                    CurrentProjectDirectory,
+                    MarkdownDocumentPath,
+                    MarkdownText);
+            }
+
+            savedMarkdownText = MarkdownText;
+            IsMarkdownDirty = false;
+            StatusMessage =
+                $"Saved '{MarkdownDocumentName}'.";
+        });
+    }
+
+    [RelayCommand]
+    private void RevertMarkdownDocument()
+    {
+        if (!HasMarkdownDocument)
+        {
+            return;
+        }
+
+        MarkdownText = savedMarkdownText;
+        IsMarkdownDirty = false;
+        StatusMessage =
+            $"Reverted '{MarkdownDocumentName}'.";
+    }
+
+    [RelayCommand]
+    private void CloseMarkdownDocument()
+    {
+        if (!HasMarkdownDocument)
+        {
+            return;
+        }
+
+        if (IsMarkdownDirty)
+        {
+            StatusMessage =
+                "Save or revert the Markdown document before closing it.";
+            return;
+        }
+
+        ClearMarkdownDocument();
+        WorkspaceTabIndex = 0;
+        StatusMessage = "Markdown document closed.";
+    }
+
+    public Task OpenProjectAsync(
+        ProjectCatalogEntry project)
+    {
+        ArgumentNullException.ThrowIfNull(project);
+
+        var changesProject =
+            CurrentProjectDirectory is not null &&
+            !string.Equals(
+                CurrentProjectDirectory,
+                project.ProjectDirectory,
+                StringComparison.OrdinalIgnoreCase);
+
+        if (changesProject && IsMarkdownDirty)
+        {
+            StatusMessage =
+                "Save or revert the current Markdown document before switching projects.";
+            return Task.CompletedTask;
+        }
+
+        if (changesProject)
+        {
+            ClearMarkdownDocument();
+        }
+
+        CurrentProjectName = project.Name;
+        CurrentProjectDirectory = project.ProjectDirectory;
+        CurrentProjectTypeName = project.TypeName;
+        CurrentPrimaryAddon = project.PrimaryAddon;
+
+        CurrentRuntimeAddons.Clear();
+
+        foreach (var runtimeAddon in project.Manifest.Runtime.Addons)
+        {
+            CurrentRuntimeAddons.Add(runtimeAddon);
+        }
+
+        CurrentProjectTree.Clear();
+
+        foreach (var item in projectExplorerService.BuildTree(project))
+        {
+            CurrentProjectTree.Add(item);
+        }
+
+        SelectedProject = project;
+        Sidebar = StudioSidebar.Explorer;
+        WorkspaceTabIndex = 0;
+        StatusMessage = $"Project '{project.Name}' opened.";
+
+        return Task.CompletedTask;
+    }
+
+    public async Task CreateAddonAsync()
+    {
+        await RunOperationAsync(async () =>
+        {
+            var result = await addonProjectService.CreateAsync(
+                new CreateAddonProjectRequest(
+                    NewAddonName,
+                    ProjectRoot));
+
+            NewAddonName = string.Empty;
+            HasActionTab = false;
+
+            await RefreshProjectsCoreAsync();
+
+            var project = FindProject(
+                result.ProjectDirectory);
+
+            if (project is not null)
+            {
+                await OpenProjectAsync(project);
+            }
+            else
+            {
+                SetCurrentProject(result);
+                Sidebar = StudioSidebar.Explorer;
+            }
+
+            StatusMessage =
+                $"Addon '{result.ProjectName}' created.";
+        });
+    }
+
+    public async Task ImportAddonAsync()
+    {
+        await RunOperationAsync(async () =>
+        {
+            var result = await addonProjectService.ImportAsync(
+                new ImportAddonProjectRequest(
+                    ImportSourceDirectory,
+                    ProjectRoot));
+
+            HasActionTab = false;
+
+            await RefreshProjectsCoreAsync();
+
+            var project = FindProject(
+                result.ProjectDirectory);
+
+            if (project is not null)
+            {
+                await OpenProjectAsync(project);
+            }
+            else
+            {
+                SetCurrentProject(result);
+                Sidebar = StudioSidebar.Explorer;
+            }
+
+            StatusMessage =
+                $"Addon '{result.ProjectName}' copied and normalized.";
+        });
+    }
+
+    partial void OnSidebarChanged(StudioSidebar value)
+    {
+        OnPropertyChanged(nameof(IsStartSidebar));
+        OnPropertyChanged(nameof(IsExplorerSidebar));
+        OnPropertyChanged(nameof(IsComponentsSidebar));
+        OnPropertyChanged(nameof(IsGitSidebar));
+        OnPropertyChanged(nameof(IsPublishingSidebar));
+        OnPropertyChanged(nameof(IsCurseForgeSidebar));
+        OnPropertyChanged(nameof(IsSettingsSidebar));
+        OnPropertyChanged(nameof(WorkspaceTitle));
+    }
+
+    partial void OnSetupRequiredChanged(bool value) =>
+        OnPropertyChanged(nameof(IsSetupComplete));
+
+    partial void OnSelectedProjectChanged(
+        ProjectCatalogEntry? value) =>
+        OnPropertyChanged(nameof(CanOpenSelectedProject));
+
+    partial void OnSelectedProjectTreeItemChanged(
+        ProjectTreeItem? value) =>
+        OnPropertyChanged(nameof(HasSelectedMarkdownFile));
+
+    partial void OnMarkdownDocumentPathChanged(
+        string? value)
+    {
+        OnPropertyChanged(nameof(MarkdownDocumentName));
+        OnPropertyChanged(nameof(MarkdownDocumentTabTitle));
+    }
+
+    partial void OnMarkdownTextChanged(string value)
+    {
+        if (HasMarkdownDocument)
+        {
+            IsMarkdownDirty =
+                !string.Equals(
+                    value,
+                    savedMarkdownText,
+                    StringComparison.Ordinal);
+        }
+    }
+
+    partial void OnIsMarkdownDirtyChanged(bool value)
+    {
+        OnPropertyChanged(nameof(MarkdownDocumentTabTitle));
+        OnPropertyChanged(nameof(CanCloseMarkdownDocument));
+    }
+
+    partial void OnHasMarkdownDocumentChanged(bool value) =>
+        OnPropertyChanged(nameof(CanCloseMarkdownDocument));
+
+    partial void OnCurrentProjectDirectoryChanged(
+        string? value) =>
+        RaisePublishingProperties();
+
+    partial void OnMarkdownEditorModeChanged(
+        MarkdownEditorMode value)
+    {
+        OnPropertyChanged(nameof(IsMarkdownEditorMode));
+        OnPropertyChanged(nameof(IsMarkdownPreviewMode));
+        OnPropertyChanged(nameof(IsMarkdownSplitMode));
+        OnPropertyChanged(nameof(IsMarkdownEditingMode));
+    }
+
+    partial void OnCurrentProjectNameChanged(string? value)
+    {
+        OnPropertyChanged(nameof(HasCurrentProject));
+        OnPropertyChanged(nameof(HasNoCurrentProject));
+    }
+
+    private void ClearMarkdownDocument()
+    {
+        savedMarkdownText = string.Empty;
+        markdownPublishingKind = null;
+        MarkdownDocumentPath = null;
+        MarkdownText = string.Empty;
+        HasMarkdownDocument = false;
+        IsMarkdownDirty = false;
+        SelectedProjectTreeItem = null;
+        MarkdownEditorMode = MarkdownEditorMode.Split;
+    }
+
+    private async Task OpenPublishingContentAsync(
+        PublishingContentKind kind)
+    {
+        if (CurrentProjectDirectory is null)
+        {
+            StatusMessage =
+                "Open a project before editing publishing content.";
+            return;
+        }
+
+        var file = publishingContentService.Resolve(
+            CurrentProjectDirectory,
+            kind);
+
+        if (IsMarkdownDirty &&
+            !string.Equals(
+                MarkdownDocumentPath,
+                file.Path,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            StatusMessage =
+                "Save or revert the current Markdown document before opening another file.";
+            return;
+        }
+
+        await RunOperationAsync(async () =>
+        {
+            var text = await publishingContentService.ReadAsync(
+                CurrentProjectDirectory,
+                kind);
+
+            markdownPublishingKind = kind;
+            savedMarkdownText = text;
+            MarkdownDocumentPath = file.Path;
+            MarkdownText = text;
+            HasMarkdownDocument = true;
+            IsMarkdownDirty = false;
+            MarkdownEditorMode = MarkdownEditorMode.Split;
+            WorkspaceTabIndex = 2;
+
+            StatusMessage =
+                file.Exists
+                    ? $"Opened '{Path.GetFileName(file.Path)}'."
+                    : $"New publishing file '{Path.GetFileName(file.Path)}' will be created when saved.";
+        });
+    }
+
+    private string GetPublishingStatus(
+        PublishingContentKind kind)
+    {
+        if (CurrentProjectDirectory is null)
+        {
+            return "No project open";
+        }
+
+        try
+        {
+            return publishingContentService
+                .Resolve(
+                    CurrentProjectDirectory,
+                    kind)
+                .Exists
+                ? "Created"
+                : "Not created";
+        }
+        catch
+        {
+            return "Unavailable";
+        }
+    }
+
+    private void RaisePublishingProperties()
+    {
+        OnPropertyChanged(nameof(PublishingSummaryFileName));
+        OnPropertyChanged(nameof(PublishingDescriptionFileName));
+        OnPropertyChanged(nameof(PublishingChangelogFileName));
+        OnPropertyChanged(nameof(PublishingSummaryStatus));
+        OnPropertyChanged(nameof(PublishingDescriptionStatus));
+        OnPropertyChanged(nameof(PublishingChangelogStatus));
+    }
+
+    private void RefreshCurrentProjectTree()
+    {
+        var project = SelectedProject;
+
+        if (project is null ||
+            CurrentProjectDirectory is null ||
+            !string.Equals(
+                project.ProjectDirectory,
+                CurrentProjectDirectory,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        CurrentProjectTree.Clear();
+
+        foreach (var item in projectExplorerService.BuildTree(project))
+        {
+            CurrentProjectTree.Add(item);
+        }
+
+        SelectedProjectTreeItem = null;
+    }
+
+    private async Task RefreshProjectsCoreAsync()
+    {
+        var result = await projectCatalogService.DiscoverAsync(
+            ProjectRoot);
+
+        Projects.Clear();
+
+        foreach (var project in result.Projects)
+        {
+            Projects.Add(project);
+        }
+
+        UnmanagedFolders.Clear();
+
+        foreach (var folder in result.UnmanagedFolders)
+        {
+            UnmanagedFolders.Add(folder);
+        }
+
+        ProjectCatalogIssues.Clear();
+
+        foreach (var issue in result.Issues)
+        {
+            ProjectCatalogIssues.Add(
+                $"{Path.GetFileName(issue.ProjectDirectory)}: {issue.Message}");
+        }
+
+        RaiseProjectCatalogProperties();
+    }
+
+    private ProjectCatalogEntry? FindProject(
+        string projectDirectory) =>
+        Projects.FirstOrDefault(
+            project => string.Equals(
+                Path.GetFullPath(project.ProjectDirectory),
+                Path.GetFullPath(projectDirectory),
+                StringComparison.OrdinalIgnoreCase));
+
+    private void RaiseProjectCatalogProperties()
+    {
+        OnPropertyChanged(nameof(HasProjects));
+        OnPropertyChanged(nameof(HasNoProjects));
+        OnPropertyChanged(nameof(ManagedProjectCount));
+        OnPropertyChanged(nameof(RuntimeAddonCount));
+        OnPropertyChanged(nameof(UnmanagedFolderCount));
+        OnPropertyChanged(nameof(HasUnmanagedFolders));
+        OnPropertyChanged(nameof(HasProjectCatalogIssues));
+    }
+
+    private void SetCurrentProject(
+        ProjectOperationResult result)
+    {
+        CurrentProjectName = result.ProjectName;
+        CurrentProjectDirectory = result.ProjectDirectory;
+        CurrentProjectTypeName = "Addon";
+        CurrentPrimaryAddon =
+            result.RuntimeAddons.FirstOrDefault();
+
+        CurrentRuntimeAddons.Clear();
+
+        foreach (var runtimeAddon in result.RuntimeAddons)
+        {
+            CurrentRuntimeAddons.Add(runtimeAddon);
+        }
+    }
+
+    private async Task RunOperationAsync(Func<Task> operation)
+    {
+        if (IsBusy)
+        {
+            return;
+        }
+
+        try
+        {
+            IsBusy = true;
+            StatusMessage = "Working ...";
+            await operation();
+        }
+        catch (Exception exception)
+        {
+            StatusMessage = $"Error: {exception.Message}";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+}

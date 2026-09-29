@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "project": {
+    "id": "foreverbag",
+    "name": "ForeverBag",
+    "type": "addon"
+  },
+  "runtime": {
+    "primaryAddon": "ForeverBag",
+    "addons": ["ForeverBag"]
+  },
+  "components": [
+    {
+      "id": "shared-ui",
+      "targets": [
+        {
+          "runtimeAddon": "ForeverBag",
+          "path": "SharedUI"
+        }
+      ]
+    }
+  ],
+  "release": {
+    "packageName": "ForeverBag"
+  }
+}

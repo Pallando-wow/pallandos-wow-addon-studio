@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "project": {
+    "id": "brokerpanels",
+    "name": "Broker Panels",
+    "type": "addon"
+  },
+  "runtime": {
+    "primaryAddon": "BrokerPanels",
+    "addons": [
+      "BrokerPanels",
+      "BrokerPanels_Audio",
+      "BrokerPanels_Bags",
+      "BrokerPanels_Clock",
+      "BrokerPanels_Experience",
+      "BrokerPanels_Locations",
+      "BrokerPanels_Loot",
+      "BrokerPanels_Mail",
+      "BrokerPanels_Money",
+      "BrokerPanels_Performance",
+      "BrokerPanels_Quests",
+      "BrokerPanels_Repair",
+      "BrokerPanels_Reputation",
+      "BrokerPanels_Social"
+    ]
+  },
+  "components": [
+    {
+      "id": "shared-ui",
+      "targets": [
+        {
+          "runtimeAddon": "BrokerPanels",
+          "path": "SharedUI"
+        }
+      ]
+    },
+    {
+      "id": "lib-semantic-data",
+      "targets": [
+        {
+          "runtimeAddon": "BrokerPanels",
+          "path": "Libs/LibSemanticData-1.0"
+        }
+      ]
+    }
+  ],
+  "release": {
+    "packageName": "BrokerPanels"
+  }
+}
