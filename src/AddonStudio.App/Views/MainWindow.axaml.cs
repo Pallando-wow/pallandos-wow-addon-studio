@@ -96,7 +96,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private async void SaveSettings_Click
+    private async void SaveSettings_Click(
         object? sender,
         RoutedEventArgs e)
     {
@@ -163,7 +163,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private async void ProjectTree_DoubleTapped
+    private async void ProjectTree_DoubleTapped(
         object? sender,
         TappedEventArgs e)
     {
