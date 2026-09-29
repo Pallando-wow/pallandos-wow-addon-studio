@@ -219,6 +219,9 @@
                         <Button Command="{Binding OpenImportAddonCommand}"
                                 HorizontalAlignment="Stretch"
                                 Content="Import Existing Addon" />
+                        <Button Command="{Binding OpenCollectorImportCommand}"
+                                HorizontalAlignment="Stretch"
+                                Content="Import Collector Data" />
 
                         <StackPanel IsVisible="{Binding HasProjectCatalogIssues}"
                                     Spacing="5"
@@ -805,6 +808,210 @@
                                             Click="ImportAddon_Click"
                                             Content="Copy and Normalize Addon" />
                                 </StackPanel>
+                            </Border>
+
+                            <Border IsVisible="{Binding IsImportCollectorAction}"
+                                    MaxWidth="1040"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Top"
+                                    Padding="22"
+                                    CornerRadius="8"
+                                    BorderThickness="1"
+                                    BorderBrush="#3A3A3A">
+                                <ScrollViewer MaxHeight="650">
+                                    <StackPanel Spacing="14">
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <TextBlock Grid.Column="0"
+                                                       FontSize="22"
+                                                       FontWeight="SemiBold"
+                                                       Text="Import Collector Data" />
+                                            <Button Grid.Column="1"
+                                                    Command="{Binding CloseActionTabCommand}"
+                                                    Content="×"
+                                                    ToolTip.Tip="Close tab" />
+                                        </Grid>
+
+                                        <TextBlock MaxWidth="880"
+                                                   TextWrapping="Wrap"
+                                                   Opacity="0.7"
+                                                   Text="Read PallandoDataCollector SavedVariables without executing Lua. The import validates the collector format and shows the observed WoW client, APIs, events and maps. Nothing is published automatically." />
+
+                                        <TextBlock Text="SavedVariables file" />
+                                        <Grid ColumnDefinitions="*,Auto"
+                                              ColumnSpacing="8">
+                                            <TextBox Grid.Column="0"
+                                                     MinWidth="620"
+                                                     IsReadOnly="True"
+                                                     Text="{Binding CollectorSourceFile}"
+                                                     PlaceholderText="Select PallandoDataCollector.lua ..." />
+                                            <Button Grid.Column="1"
+                                                    Click="ChooseCollectorSource_Click"
+                                                    Content="Browse ..." />
+                                        </Grid>
+
+                                        <Button HorizontalAlignment="Left"
+                                                Click="ImportCollector_Click"
+                                                Content="Read Collector Data" />
+
+                                        <Border IsVisible="{Binding HasCollectorImport}"
+                                                Padding="14"
+                                                CornerRadius="6"
+                                                BorderThickness="1"
+                                                BorderBrush="#3A3A3A">
+                                            <StackPanel Spacing="10">
+                                                <TextBlock FontSize="18"
+                                                           FontWeight="SemiBold"
+                                                           Text="Imported Collector Snapshot" />
+                                                <TextBlock FontFamily="Consolas"
+                                                           Text="{Binding CollectorClientSummary}" />
+                                                <TextBlock FontSize="12"
+                                                           Opacity="0.65"
+                                                           Text="{Binding CollectorRunSummary}" />
+
+                                                <TabControl>
+                                                    <TabItem Header="APIs">
+                                                        <StackPanel Margin="0,10,0,0"
+                                                                    Spacing="6">
+                                                            <Grid ColumnDefinitions="2.4*,110,100,90,110"
+                                                                  ColumnSpacing="8">
+                                                                <TextBlock FontWeight="SemiBold"
+                                                                           Text="API" />
+                                                                <TextBlock Grid.Column="1"
+                                                                           FontWeight="SemiBold"
+                                                                           Text="Status" />
+                                                                <TextBlock Grid.Column="2"
+                                                                           FontWeight="SemiBold"
+                                                                           Text="Type" />
+                                                                <TextBlock Grid.Column="3"
+                                                                           FontWeight="SemiBold"
+                                                                           Text="Count" />
+                                                                <TextBlock Grid.Column="4"
+                                                                           FontWeight="SemiBold"
+                                                                           Text="Builds" />
+                                                            </Grid>
+                                                            <ListBox ItemsSource="{Binding CollectorApis}"
+                                                                     MaxHeight="300">
+                                                                <ListBox.ItemTemplate>
+                                                                    <DataTemplate x:DataType="vm:CollectorApiRow">
+                                                                        <Grid ColumnDefinitions="2.4*,110,100,90,110"
+                                                                              ColumnSpacing="8"
+                                                                              Margin="0,3">
+                                                                            <TextBlock Text="{Binding Key}" />
+                                                                            <TextBlock Grid.Column="1"
+                                                                                       Text="{Binding Availability}" />
+                                                                            <TextBlock Grid.Column="2"
+                                                                                       Text="{Binding ValueType}" />
+                                                                            <TextBlock Grid.Column="3"
+                                                                                       Text="{Binding Observations}" />
+                                                                            <TextBlock Grid.Column="4"
+                                                                                       Text="{Binding Builds}" />
+                                                                        </Grid>
+                                                                    </DataTemplate>
+                                                                </ListBox.ItemTemplate>
+                                                            </ListBox>
+                                                        </StackPanel>
+                                                    </TabItem>
+
+                                                    <TabItem Header="Events">
+                                                        <StackPanel Margin="0,10,0,0"
+                                                                    Spacing="6">
+                                                            <Grid ColumnDefinitions="2.4*,110,90,90,110"
+                                                                  ColumnSpacing="8">
+                                                                <TextBlock FontWeight="SemiBold"
+                                                                           Text="Event" />
+                                                                <TextBlock Grid.Column="1"
+                                                                           FontWeight="SemiBold"
+                                                                           Text="Support" />
+                                                                <TextBlock Grid.Column="2"
+                                                                           FontWeight="SemiBold"
+                                                                           Text="Observed" />
+                                                                <TextBlock Grid.Column="3"
+                                                                           FontWeight="SemiBold"
+                                                                           Text="Count" />
+                                                                <TextBlock Grid.Column="4"
+                                                                           FontWeight="SemiBold"
+                                                                           Text="Builds" />
+                                                            </Grid>
+                                                            <ListBox ItemsSource="{Binding CollectorEvents}"
+                                                                     MaxHeight="300">
+                                                                <ListBox.ItemTemplate>
+                                                                    <DataTemplate x:DataType="vm:CollectorEventRow">
+                                                                        <Grid ColumnDefinitions="2.4*,110,90,90,110"
+                                                                              ColumnSpacing="8"
+                                                                              Margin="0,3">
+                                                                            <TextBlock Text="{Binding Key}" />
+                                                                            <TextBlock Grid.Column="1"
+                                                                                       Text="{Binding Support}" />
+                                                                            <TextBlock Grid.Column="2"
+                                                                                       Text="{Binding Observed}" />
+                                                                            <TextBlock Grid.Column="3"
+                                                                                       Text="{Binding Observations}" />
+                                                                            <TextBlock Grid.Column="4"
+                                                                                       Text="{Binding Builds}" />
+                                                                        </Grid>
+                                                                    </DataTemplate>
+                                                                </ListBox.ItemTemplate>
+                                                            </ListBox>
+                                                        </StackPanel>
+                                                    </TabItem>
+
+                                                    <TabItem Header="Maps">
+                                                        <StackPanel Margin="0,10,0,0"
+                                                                    Spacing="6">
+                                                            <Grid ColumnDefinitions="75,2*,80,90,150,80,110"
+                                                                  ColumnSpacing="8">
+                                                                <TextBlock FontWeight="SemiBold"
+                                                                           Text="ID" />
+                                                                <TextBlock Grid.Column="1"
+                                                                           FontWeight="SemiBold"
+                                                                           Text="Name" />
+                                                                <TextBlock Grid.Column="2"
+                                                                           FontWeight="SemiBold"
+                                                                           Text="Type" />
+                                                                <TextBlock Grid.Column="3"
+                                                                           FontWeight="SemiBold"
+                                                                           Text="Parent" />
+                                                                <TextBlock Grid.Column="4"
+                                                                           FontWeight="SemiBold"
+                                                                           Text="World size" />
+                                                                <TextBlock Grid.Column="5"
+                                                                           FontWeight="SemiBold"
+                                                                           Text="Count" />
+                                                                <TextBlock Grid.Column="6"
+                                                                           FontWeight="SemiBold"
+                                                                           Text="Builds" />
+                                                            </Grid>
+                                                            <ListBox ItemsSource="{Binding CollectorMaps}"
+                                                                     MaxHeight="300">
+                                                                <ListBox.ItemTemplate>
+                                                                    <DataTemplate x:DataType="vm:CollectorMapRow">
+                                                                        <Grid ColumnDefinitions="75,2*,80,90,150,80,110"
+                                                                              ColumnSpacing="8"
+                                                                              Margin="0,3">
+                                                                            <TextBlock Text="{Binding Id}" />
+                                                                            <TextBlock Grid.Column="1"
+                                                                                       Text="{Binding Name}" />
+                                                                            <TextBlock Grid.Column="2"
+                                                                                       Text="{Binding Type}" />
+                                                                            <TextBlock Grid.Column="3"
+                                                                                       Text="{Binding Parent}" />
+                                                                            <TextBlock Grid.Column="4"
+                                                                                       Text="{Binding Size}" />
+                                                                            <TextBlock Grid.Column="5"
+                                                                                       Text="{Binding Observations}" />
+                                                                            <TextBlock Grid.Column="6"
+                                                                                       Text="{Binding Builds}" />
+                                                                        </Grid>
+                                                                    </DataTemplate>
+                                                                </ListBox.ItemTemplate>
+                                                            </ListBox>
+                                                        </StackPanel>
+                                                    </TabItem>
+                                                </TabControl>
+                                            </StackPanel>
+                                        </Border>
+                                    </StackPanel>
+                                </ScrollViewer>
                             </Border>
                         </Grid>
                     </TabItem>
