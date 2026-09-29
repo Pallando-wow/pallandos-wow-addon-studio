@@ -450,7 +450,7 @@ public sealed class PallandoCollectorReader : IPallandoCollectorReader
                 return ParseTable();
             }
 
-            if (current is '"' or ''')
+            if (current is '"' or '\\'')
             {
                 return ParseString();
             }
@@ -615,7 +615,7 @@ public sealed class PallandoCollectorReader : IPallandoCollectorReader
                         break;
                     case '\\':
                     case '"':
-                    case ''':
+                    case '\\'':
                         builder.Append(escaped);
                         break;
                     case 'x':
