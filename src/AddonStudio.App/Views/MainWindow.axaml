@@ -890,7 +890,10 @@
                                                                            Text="Builds" />
                                                             </Grid>
                                                             <ListBox ItemsSource="{Binding CollectorApis}"
-                                                                     MaxHeight="300">
+                                                                     MaxHeight="300"
+                                                                     ClipToBounds="True"
+                                                                     ScrollViewer.VerticalSnapPointsType="MandatorySingle"
+                                                                     ScrollViewer.VerticalSnapPointsAlignment="Near">
                                                                 <ListBox.ItemTemplate>
                                                                     <DataTemplate x:DataType="vm:CollectorApiRow">
                                                                         <Grid ColumnDefinitions="2.4*,110,100,90,110"
@@ -933,7 +936,10 @@
                                                                            Text="Builds" />
                                                             </Grid>
                                                             <ListBox ItemsSource="{Binding CollectorEvents}"
-                                                                     MaxHeight="300">
+                                                                     MaxHeight="300"
+                                                                     ClipToBounds="True"
+                                                                     ScrollViewer.VerticalSnapPointsType="MandatorySingle"
+                                                                     ScrollViewer.VerticalSnapPointsAlignment="Near">
                                                                 <ListBox.ItemTemplate>
                                                                     <DataTemplate x:DataType="vm:CollectorEventRow">
                                                                         <Grid ColumnDefinitions="2.4*,110,90,90,110"
@@ -982,7 +988,10 @@
                                                                            Text="Builds" />
                                                             </Grid>
                                                             <ListBox ItemsSource="{Binding CollectorMaps}"
-                                                                     MaxHeight="300">
+                                                                     MaxHeight="300"
+                                                                     ClipToBounds="True"
+                                                                     ScrollViewer.VerticalSnapPointsType="MandatorySingle"
+                                                                     ScrollViewer.VerticalSnapPointsAlignment="Near">
                                                                 <ListBox.ItemTemplate>
                                                                     <DataTemplate x:DataType="vm:CollectorMapRow">
                                                                         <Grid ColumnDefinitions="75,2*,80,90,150,80,110"
