@@ -7,6 +7,7 @@ using AddonStudio.Application.WowData;
 using AddonStudio.Core.Projects;
 using AddonStudio.Core.Publishing;
 using AddonStudio.Media;
+using AddonStudio.Platforms.CurseForge;
 using AddonStudio.Wow.Toc;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -60,9 +61,22 @@ public sealed record CollectorValidationIssueRow(
     string Code,
     string Message);
 
+public partial class CurseForgeCategoryChoice(
+    int id,
+    string name) : ObservableObject
+{
+    public int Id { get; } = id;
+
+    public string Name { get; } = name;
+
+    [ObservableProperty]
+    private bool isSelected;
+}
+
 public partial class MainWindowViewModel(
     AddonProjectService addonProjectService,
     ProjectCurseForgeSettingsService projectCurseForgeSettingsService,
+    CurseForgeDataSourceClient curseForgeDataSourceClient,
     IStudioSettingsStore settingsStore,
     ProjectCatalogService projectCatalogService,
     ProjectExplorerService projectExplorerService,
@@ -150,6 +164,20 @@ public partial class MainWindowViewModel(
     private string wowForeverAddOnsPath = string.Empty;
 
     [ObservableProperty]
+    private string curseForgeApiKey = string.Empty;
+
+    [ObservableProperty]
+    private bool curseForgeDataSourceReady;
+
+    [ObservableProperty]
+    private string curseForgeDataSourceStatus =
+        "Not configured";
+
+    [ObservableProperty]
+    private CurseForgeCategoryChoice?
+        selectedCurseForgeMainCategory;
+
+    [ObservableProperty]
     private bool setupRequired;
 
     [ObservableProperty]
@@ -196,6 +224,9 @@ public partial class MainWindowViewModel(
 
     public ObservableCollection<string> PublishingScreenshots { get; } = [];
 
+    public ObservableCollection<CurseForgeCategoryChoice>
+        CurseForgeCategories { get; } = [];
+
     [ObservableProperty]
     private string curseForgeProjectId = string.Empty;
 
@@ -241,6 +272,7 @@ public partial class MainWindowViewModel(
     public MainWindowViewModel(
         AddonProjectService addonProjectService,
         ProjectCurseForgeSettingsService projectCurseForgeSettingsService,
+        CurseForgeDataSourceClient curseForgeDataSourceClient,
         IStudioSettingsStore settingsStore,
         ProjectCatalogService projectCatalogService,
         ProjectExplorerService projectExplorerService,
@@ -253,6 +285,7 @@ public partial class MainWindowViewModel(
         : this(
             addonProjectService,
             projectCurseForgeSettingsService,
+            curseForgeDataSourceClient,
             settingsStore,
             projectCatalogService,
             projectExplorerService,
@@ -266,6 +299,11 @@ public partial class MainWindowViewModel(
 
         projectRoot = settings.ProjectRoot;
         wowForeverAddOnsPath = settings.WowForeverAddOnsPath;
+        curseForgeApiKey = settings.CurseForgeApiKey;
+        curseForgeDataSourceStatus =
+            string.IsNullOrWhiteSpace(curseForgeApiKey)
+                ? "Not configured"
+                : "Configured · not connected";
         setupRequired = !StudioSettingsValidator.IsComplete(settings);
         sidebar = setupRequired
             ? StudioSidebar.Settings
@@ -483,6 +521,16 @@ public partial class MainWindowViewModel(
             ? $"{PublishingScreenshots.Count} screenshot(s)"
             : "No screenshots";
 
+    public bool IsCurseForgeDataSourceConfigured =>
+        !string.IsNullOrWhiteSpace(
+            CurseForgeApiKey);
+
+    public bool CanUseCurseForgeProjectSettings =>
+        CurseForgeDataSourceReady;
+
+    public bool HasCurseForgeCategories =>
+        CurseForgeCategories.Count > 0;
+
     public IReadOnlyList<string> CurseForgeDistributionOptions { get; } =
     [
         "Not configured",
@@ -683,9 +731,20 @@ public partial class MainWindowViewModel(
             return;
         }
 
+        if (!CurseForgeDataSourceReady)
+        {
+            StatusMessage =
+                "Connect the CurseForge data source before editing CurseForge settings.";
+            return;
+        }
+
         var additionalCategories =
-            ParseAdditionalCategoryIds(
-                CurseForgeAdditionalCategoryIds);
+            CurseForgeCategories
+                .Where(category =>
+                    category.IsSelected)
+                .Select(category =>
+                    category.Id.ToString())
+                .ToArray();
 
         if (additionalCategories.Count > 4)
         {
@@ -694,10 +753,9 @@ public partial class MainWindowViewModel(
             return;
         }
 
-        if (!string.IsNullOrWhiteSpace(
-                CurseForgeMainCategoryId) &&
+        if (SelectedCurseForgeMainCategory is not null &&
             additionalCategories.Contains(
-                CurseForgeMainCategoryId.Trim(),
+                SelectedCurseForgeMainCategory.Id.ToString(),
                 StringComparer.OrdinalIgnoreCase))
         {
             StatusMessage =
@@ -719,7 +777,8 @@ public partial class MainWindowViewModel(
                 ProjectId = CurseForgeProjectId,
                 Slug = CurseForgeSlug,
                 MainCategoryId =
-                    CurseForgeMainCategoryId,
+                    SelectedCurseForgeMainCategory?
+                        .Id.ToString(),
                 AdditionalCategoryIds =
                     additionalCategories,
                 License = CurseForgeLicense,
@@ -751,6 +810,90 @@ public partial class MainWindowViewModel(
 
             StatusMessage =
                 "CurseForge settings saved to project.json.";
+        });
+    }
+
+    [RelayCommand]
+    private async Task TestCurseForgeDataSourceAsync()
+    {
+        if (!IsCurseForgeDataSourceConfigured)
+        {
+            CurseForgeDataSourceReady = false;
+            CurseForgeDataSourceStatus =
+                "Not configured";
+            CurseForgeCategories.Clear();
+            SelectedCurseForgeMainCategory = null;
+            StatusMessage =
+                "Enter a CurseForge API key first.";
+            return;
+        }
+
+        await RunOperationAsync(async () =>
+        {
+            try
+            {
+                CurseForgeDataSourceReady = false;
+                CurseForgeDataSourceStatus =
+                    "Connecting ...";
+                CurseForgeCategories.Clear();
+                SelectedCurseForgeMainCategory = null;
+
+                var snapshot =
+                    await curseForgeDataSourceClient
+                        .LoadWorldOfWarcraftAsync(
+                            CurseForgeApiKey);
+
+                var addonClass =
+                    snapshot.Categories
+                        .FirstOrDefault(category =>
+                            category.IsClass &&
+                            string.Equals(
+                                category.Name,
+                                "Addons",
+                                StringComparison.OrdinalIgnoreCase));
+
+                var projectCategories =
+                    snapshot.Categories
+                        .Where(category =>
+                            !category.IsClass &&
+                            (addonClass is null ||
+                             category.ClassId ==
+                             addonClass.Id))
+                        .OrderBy(category =>
+                            category.DisplayIndex)
+                        .ThenBy(category =>
+                            category.Name,
+                            StringComparer.OrdinalIgnoreCase)
+                        .ToArray();
+
+                foreach (var category in
+                         projectCategories)
+                {
+                    CurseForgeCategories.Add(
+                        new CurseForgeCategoryChoice(
+                            category.Id,
+                            category.Name));
+                }
+
+                CurseForgeDataSourceReady = true;
+                CurseForgeDataSourceStatus =
+                    $"Connected · {snapshot.Game.Name} · " +
+                    $"{CurseForgeCategories.Count} categories";
+
+                ApplyCurseForgeCategorySelections();
+
+                StatusMessage =
+                    "CurseForge data source connected.";
+            }
+            catch
+            {
+                CurseForgeDataSourceReady = false;
+                CurseForgeDataSourceStatus =
+                    "Connection failed";
+                CurseForgeCategories.Clear();
+                SelectedCurseForgeMainCategory = null;
+                throw;
+            }
         });
     }
 
@@ -830,7 +973,8 @@ public partial class MainWindowViewModel(
         var settings = new StudioSettings
         {
             ProjectRoot = ProjectRoot.Trim(),
-            WowForeverAddOnsPath = WowForeverAddOnsPath.Trim()
+            WowForeverAddOnsPath = WowForeverAddOnsPath.Trim(),
+            CurseForgeApiKey = CurseForgeApiKey.Trim()
         };
 
         var issues = StudioSettingsValidator.Validate(settings);
@@ -846,6 +990,7 @@ public partial class MainWindowViewModel(
 
         ProjectRoot = Path.GetFullPath(settings.ProjectRoot);
         WowForeverAddOnsPath = Path.GetFullPath(settings.WowForeverAddOnsPath);
+        CurseForgeApiKey = settings.CurseForgeApiKey;
         SetupRequired = false;
         Sidebar = StudioSidebar.Start;
         WorkspaceTabIndex = 0;
@@ -861,6 +1006,11 @@ public partial class MainWindowViewModel(
 
         ProjectRoot = string.Empty;
         WowForeverAddOnsPath = string.Empty;
+        CurseForgeApiKey = string.Empty;
+        CurseForgeDataSourceReady = false;
+        CurseForgeDataSourceStatus = "Not configured";
+        CurseForgeCategories.Clear();
+        SelectedCurseForgeMainCategory = null;
         SetupRequired = true;
         Sidebar = StudioSidebar.Settings;
         WorkspaceTabIndex = 0;
@@ -1660,6 +1810,30 @@ public partial class MainWindowViewModel(
         OnPropertyChanged(nameof(PublishingLogoActionText));
     }
 
+    partial void OnCurseForgeApiKeyChanged(
+        string value)
+    {
+        CurseForgeDataSourceReady = false;
+        CurseForgeCategories.Clear();
+        SelectedCurseForgeMainCategory = null;
+        CurseForgeDataSourceStatus =
+            string.IsNullOrWhiteSpace(value)
+                ? "Not configured"
+                : "Configured · not connected";
+
+        OnPropertyChanged(
+            nameof(IsCurseForgeDataSourceConfigured));
+        OnPropertyChanged(
+            nameof(CanUseCurseForgeProjectSettings));
+        OnPropertyChanged(
+            nameof(HasCurseForgeCategories));
+    }
+
+    partial void OnCurseForgeDataSourceReadyChanged(
+        bool value) =>
+        OnPropertyChanged(
+            nameof(CanUseCurseForgeProjectSettings));
+
     partial void OnCurseForgeProjectIdChanged(
         string value) =>
         OnPropertyChanged(nameof(CurseForgeBindingStatus));
@@ -1746,6 +1920,33 @@ public partial class MainWindowViewModel(
                 false => "Blocked",
                 null => "Not configured"
             };
+
+        ApplyCurseForgeCategorySelections();
+    }
+
+    private void ApplyCurseForgeCategorySelections()
+    {
+        var additionalCategoryIds =
+            ParseAdditionalCategoryIds(
+                CurseForgeAdditionalCategoryIds)
+                .ToHashSet(
+                    StringComparer.OrdinalIgnoreCase);
+
+        SelectedCurseForgeMainCategory =
+            CurseForgeCategories
+                .FirstOrDefault(category =>
+                    string.Equals(
+                        category.Id.ToString(),
+                        CurseForgeMainCategoryId,
+                        StringComparison.OrdinalIgnoreCase));
+
+        foreach (var category in
+                 CurseForgeCategories)
+        {
+            category.IsSelected =
+                additionalCategoryIds.Contains(
+                    category.Id.ToString());
+        }
     }
 
     private static IReadOnlyList<string> ParseAdditionalCategoryIds(
