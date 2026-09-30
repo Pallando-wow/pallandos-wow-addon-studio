@@ -970,8 +970,7 @@ public partial class MainWindowViewModel(
             CurseForgeDataSourceReady = false;
             CurseForgeDataSourceStatus =
                 "Not configured";
-            CurseForgeCategories.Clear();
-            SelectedCurseForgeMainCategory = null;
+            ClearCurseForgeCategoryChoices();
             StatusMessage =
                 "Enter a CurseForge API key first.";
             return;
@@ -984,8 +983,7 @@ public partial class MainWindowViewModel(
                 CurseForgeDataSourceReady = false;
                 CurseForgeDataSourceStatus =
                     "Connecting ...";
-                CurseForgeCategories.Clear();
-                SelectedCurseForgeMainCategory = null;
+                ClearCurseForgeCategoryChoices();
 
                 var snapshot =
                     await curseForgeDataSourceClient
@@ -1047,11 +1045,30 @@ public partial class MainWindowViewModel(
                 CurseForgeDataSourceReady = false;
                 CurseForgeDataSourceStatus =
                     "Connection failed";
-                CurseForgeCategories.Clear();
-                SelectedCurseForgeMainCategory = null;
+                ClearCurseForgeCategoryChoices();
                 throw;
             }
         });
+    }
+
+    private void ClearCurseForgeCategoryChoices()
+    {
+        foreach (var category in
+                 CurseForgeCategories)
+        {
+            category.SelectionChanged -=
+                CurseForgeCategory_SelectionChanged;
+        }
+
+        CurseForgeCategories.Clear();
+        FilteredCurseForgeMainCategories.Clear();
+        FilteredCurseForgeAdditionalCategories.Clear();
+        SelectedCurseForgeMainCategory = null;
+
+        OnPropertyChanged(
+            nameof(HasCurseForgeCategories));
+        OnPropertyChanged(
+            nameof(CurseForgeAdditionalCategorySelectionStatus));
     }
 
     private void CurseForgeCategory_SelectionChanged(
@@ -1281,8 +1298,7 @@ public partial class MainWindowViewModel(
         CurseForgeApiKey = string.Empty;
         CurseForgeDataSourceReady = false;
         CurseForgeDataSourceStatus = "Not configured";
-        CurseForgeCategories.Clear();
-        SelectedCurseForgeMainCategory = null;
+        ClearCurseForgeCategoryChoices();
         SetupRequired = true;
         Sidebar = StudioSidebar.Settings;
         WorkspaceTabIndex = 0;
@@ -2155,8 +2171,7 @@ public partial class MainWindowViewModel(
         string value)
     {
         CurseForgeDataSourceReady = false;
-        CurseForgeCategories.Clear();
-        SelectedCurseForgeMainCategory = null;
+        ClearCurseForgeCategoryChoices();
         CurseForgeDataSourceStatus =
             string.IsNullOrWhiteSpace(value)
                 ? "Not configured"
@@ -2185,6 +2200,15 @@ public partial class MainWindowViewModel(
         if (value?.IsSelected == true)
         {
             value.IsSelected = false;
+        }
+
+        if (value is not null &&
+            !string.IsNullOrWhiteSpace(
+                CurseForgeMainCategorySearchText))
+        {
+            CurseForgeMainCategorySearchText =
+                string.Empty;
+            return;
         }
 
         RefreshCurseForgeCategoryFilters();
