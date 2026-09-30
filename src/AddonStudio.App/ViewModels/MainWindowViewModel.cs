@@ -4,7 +4,9 @@ using AddonStudio.Application.Projects;
 using AddonStudio.Application.Publishing;
 using AddonStudio.Application.Settings;
 using AddonStudio.Application.WowData;
+using AddonStudio.Core.Projects;
 using AddonStudio.Core.Publishing;
+using AddonStudio.Wow.Toc;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -63,6 +65,7 @@ public partial class MainWindowViewModel(
     ProjectExplorerService projectExplorerService,
     MarkdownDocumentService markdownDocumentService,
     PublishingContentService publishingContentService,
+    TocDocumentReader tocDocumentReader,
     IPallandoCollectorReader pallandoCollectorReader) : ViewModelBase
 {
     public string StudioVersion =>
@@ -149,6 +152,39 @@ public partial class MainWindowViewModel(
     private ProjectCatalogEntry? selectedProject;
 
     [ObservableProperty]
+    private bool hasSelectedProjectTocMetadata;
+
+    [ObservableProperty]
+    private string selectedProjectTocFile = "—";
+
+    [ObservableProperty]
+    private string selectedProjectTocTitle = "—";
+
+    [ObservableProperty]
+    private string selectedProjectTocVersion = "—";
+
+    [ObservableProperty]
+    private string selectedProjectTocAuthor = "—";
+
+    [ObservableProperty]
+    private string selectedProjectTocInterfaces = "—";
+
+    [ObservableProperty]
+    private string selectedProjectTocNotes = "—";
+
+    [ObservableProperty]
+    private string selectedProjectTocDependencies = "—";
+
+    [ObservableProperty]
+    private string selectedProjectTocSavedVariables = "—";
+
+    [ObservableProperty]
+    private bool hasSelectedProjectSummary;
+
+    [ObservableProperty]
+    private string selectedProjectSummary = string.Empty;
+
+    [ObservableProperty]
     private ProjectTreeItem? selectedProjectTreeItem;
 
     [ObservableProperty]
@@ -177,6 +213,7 @@ public partial class MainWindowViewModel(
         ProjectExplorerService projectExplorerService,
         MarkdownDocumentService markdownDocumentService,
         PublishingContentService publishingContentService,
+        TocDocumentReader tocDocumentReader,
         IPallandoCollectorReader pallandoCollectorReader,
         bool initialize = true)
         : this(
@@ -186,6 +223,7 @@ public partial class MainWindowViewModel(
             projectExplorerService,
             markdownDocumentService,
             publishingContentService,
+            tocDocumentReader,
             pallandoCollectorReader)
     {
         var settings = settingsStore.Load();
@@ -1077,6 +1115,187 @@ public partial class MainWindowViewModel(
         OnPropertyChanged(nameof(SelectedProjectPackageName));
         OnPropertyChanged(nameof(SelectedProjectCurseForge));
         OnPropertyChanged(nameof(SelectedProjectDirectory));
+
+        ResetSelectedProjectPreviewMetadata();
+
+        if (value is not null)
+        {
+            _ = LoadSelectedProjectPreviewMetadataAsync(value);
+        }
+    }
+
+    private async Task LoadSelectedProjectPreviewMetadataAsync(
+        ProjectCatalogEntry project)
+    {
+        try
+        {
+            var summary = await publishingContentService.ReadAsync(
+                project.ProjectDirectory,
+                PublishingContentKind.Summary);
+
+            if (!IsStillSelectedProject(project))
+            {
+                return;
+            }
+
+            SelectedProjectSummary = summary.Trim();
+            HasSelectedProjectSummary =
+                SelectedProjectSummary.Length > 0;
+        }
+        catch (Exception exception)
+            when (exception is IOException
+                or UnauthorizedAccessException
+                or InvalidDataException)
+        {
+            // Preview metadata is optional and must not block project selection.
+        }
+
+        try
+        {
+            var runtimeAddon =
+                !string.IsNullOrWhiteSpace(project.PrimaryAddon)
+                    ? project.PrimaryAddon
+                    : project.Manifest.Runtime.Addons.FirstOrDefault();
+
+            if (string.IsNullOrWhiteSpace(runtimeAddon))
+            {
+                return;
+            }
+
+            var addonDirectory = Path.Combine(
+                project.ProjectDirectory,
+                ProjectLayout.RuntimeDirectoryName,
+                runtimeAddon);
+
+            if (!Directory.Exists(addonDirectory))
+            {
+                return;
+            }
+
+            var tocFiles = Directory
+                .EnumerateFiles(
+                    addonDirectory,
+                    "*.toc",
+                    SearchOption.TopDirectoryOnly)
+                .OrderBy(
+                    path => path,
+                    StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            if (tocFiles.Length == 0)
+            {
+                return;
+            }
+
+            var tocPath =
+                tocFiles.FirstOrDefault(path =>
+                    string.Equals(
+                        Path.GetFileNameWithoutExtension(path),
+                        runtimeAddon,
+                        StringComparison.OrdinalIgnoreCase))
+                ?? tocFiles[0];
+
+            var toc = await tocDocumentReader.ReadAsync(tocPath);
+
+            if (!IsStillSelectedProject(project))
+            {
+                return;
+            }
+
+            SelectedProjectTocFile =
+                Path.GetFileName(toc.FilePath);
+            SelectedProjectTocTitle =
+                DisplayMetadata(toc.Title);
+            SelectedProjectTocVersion =
+                DisplayMetadata(toc.Version);
+            SelectedProjectTocAuthor =
+                DisplayMetadata(toc.GetMetadata("Author"));
+            SelectedProjectTocInterfaces =
+                DisplayList(toc.Interfaces);
+            SelectedProjectTocNotes =
+                DisplayMetadata(toc.Notes);
+
+            var dependencies = new List<string>();
+
+            if (toc.Dependencies.Count > 0)
+            {
+                dependencies.Add(
+                    $"Required: {string.Join(", ", toc.Dependencies)}");
+            }
+
+            if (toc.OptionalDependencies.Count > 0)
+            {
+                dependencies.Add(
+                    $"Optional: {string.Join(", ", toc.OptionalDependencies)}");
+            }
+
+            SelectedProjectTocDependencies =
+                dependencies.Count == 0
+                    ? "—"
+                    : string.Join(" · ", dependencies);
+
+            var savedVariables = new List<string>();
+
+            if (toc.SavedVariables.Count > 0)
+            {
+                savedVariables.Add(
+                    $"Global: {string.Join(", ", toc.SavedVariables)}");
+            }
+
+            if (toc.SavedVariablesPerCharacter.Count > 0)
+            {
+                savedVariables.Add(
+                    $"Per character: {string.Join(", ", toc.SavedVariablesPerCharacter)}");
+            }
+
+            SelectedProjectTocSavedVariables =
+                savedVariables.Count == 0
+                    ? "—"
+                    : string.Join(" · ", savedVariables);
+
+            HasSelectedProjectTocMetadata = true;
+        }
+        catch (Exception exception)
+            when (exception is IOException
+                or UnauthorizedAccessException
+                or InvalidDataException)
+        {
+            // A broken optional preview must not prevent opening the project.
+        }
+    }
+
+    private bool IsStillSelectedProject(
+        ProjectCatalogEntry project) =>
+        SelectedProject is not null &&
+        string.Equals(
+            SelectedProject.ProjectDirectory,
+            project.ProjectDirectory,
+            StringComparison.OrdinalIgnoreCase);
+
+    private static string DisplayMetadata(string? value) =>
+        string.IsNullOrWhiteSpace(value)
+            ? "—"
+            : value.Trim();
+
+    private static string DisplayList(
+        IReadOnlyList<string> values) =>
+        values.Count == 0
+            ? "—"
+            : string.Join(", ", values);
+
+    private void ResetSelectedProjectPreviewMetadata()
+    {
+        HasSelectedProjectTocMetadata = false;
+        SelectedProjectTocFile = "—";
+        SelectedProjectTocTitle = "—";
+        SelectedProjectTocVersion = "—";
+        SelectedProjectTocAuthor = "—";
+        SelectedProjectTocInterfaces = "—";
+        SelectedProjectTocNotes = "—";
+        SelectedProjectTocDependencies = "—";
+        SelectedProjectTocSavedVariables = "—";
+        HasSelectedProjectSummary = false;
+        SelectedProjectSummary = string.Empty;
     }
 
     partial void OnSelectedProjectTreeItemChanged(
