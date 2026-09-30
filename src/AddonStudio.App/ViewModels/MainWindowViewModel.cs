@@ -84,6 +84,21 @@ public partial class CurseForgeCategoryChoice(
             EventArgs.Empty);
 }
 
+public sealed class ProjectScreenshotItem(
+    string fullPath,
+    Bitmap image) : IDisposable
+{
+    public string FullPath { get; } = fullPath;
+
+    public string FileName { get; } =
+        Path.GetFileName(fullPath);
+
+    public Bitmap Image { get; } = image;
+
+    public void Dispose() =>
+        Image.Dispose();
+}
+
 public partial class MainWindowViewModel(
     AddonProjectService addonProjectService,
     ProjectCurseForgeSettingsService projectCurseForgeSettingsService,
@@ -251,7 +266,14 @@ public partial class MainWindowViewModel(
     [ObservableProperty]
     private Bitmap? currentProjectLogoImage;
 
+    [ObservableProperty]
+    private ProjectScreenshotItem?
+        selectedProjectScreenshot;
+
     public ObservableCollection<string> PublishingScreenshots { get; } = [];
+
+    public ObservableCollection<ProjectScreenshotItem>
+        ProjectScreenshots { get; } = [];
 
     public ObservableCollection<CurseForgeCategoryChoice>
         CurseForgeCategories { get; } = [];
@@ -588,6 +610,29 @@ public partial class MainWindowViewModel(
         HasPublishingScreenshots
             ? $"{PublishingScreenshots.Count} screenshot(s)"
             : "No screenshots";
+
+    public bool HasProjectScreenshots =>
+        ProjectScreenshots.Count > 0;
+
+    public bool HasNoProjectScreenshots =>
+        !HasProjectScreenshots;
+
+    public bool CanShowPreviousProjectScreenshot =>
+        SelectedProjectScreenshot is not null &&
+        ProjectScreenshots.IndexOf(
+            SelectedProjectScreenshot) > 0;
+
+    public bool CanShowNextProjectScreenshot =>
+        SelectedProjectScreenshot is not null &&
+        ProjectScreenshots.IndexOf(
+            SelectedProjectScreenshot) >= 0 &&
+        ProjectScreenshots.IndexOf(
+            SelectedProjectScreenshot) <
+            ProjectScreenshots.Count - 1;
+
+    public string SelectedProjectScreenshotName =>
+        SelectedProjectScreenshot?.FileName ??
+        "No screenshot selected";
 
     public bool IsCurseForgeDataSourceConfigured =>
         !string.IsNullOrWhiteSpace(
@@ -1248,6 +1293,7 @@ public partial class MainWindowViewModel(
         ClearMarkdownDocument();
         CurrentProjectLogoImage?.Dispose();
         CurrentProjectLogoImage = null;
+        DisposeProjectScreenshots();
 
         SelectedProject = null;
         currentProject = null;
@@ -1453,6 +1499,45 @@ public partial class MainWindowViewModel(
             StatusMessage =
                 $"{added.Count} screenshot(s) added.";
         });
+    }
+
+    [RelayCommand]
+    private void ShowPreviousProjectScreenshot()
+    {
+        if (SelectedProjectScreenshot is null)
+        {
+            return;
+        }
+
+        var index =
+            ProjectScreenshots.IndexOf(
+                SelectedProjectScreenshot);
+
+        if (index > 0)
+        {
+            SelectedProjectScreenshot =
+                ProjectScreenshots[index - 1];
+        }
+    }
+
+    [RelayCommand]
+    private void ShowNextProjectScreenshot()
+    {
+        if (SelectedProjectScreenshot is null)
+        {
+            return;
+        }
+
+        var index =
+            ProjectScreenshots.IndexOf(
+                SelectedProjectScreenshot);
+
+        if (index >= 0 &&
+            index < ProjectScreenshots.Count - 1)
+        {
+            SelectedProjectScreenshot =
+                ProjectScreenshots[index + 1];
+        }
     }
 
     [RelayCommand]
@@ -2050,6 +2135,17 @@ public partial class MainWindowViewModel(
             nameof(HasNoCurrentProjectLogoImage));
     }
 
+    partial void OnSelectedProjectScreenshotChanged(
+        ProjectScreenshotItem? value)
+    {
+        OnPropertyChanged(
+            nameof(CanShowPreviousProjectScreenshot));
+        OnPropertyChanged(
+            nameof(CanShowNextProjectScreenshot));
+        OnPropertyChanged(
+            nameof(SelectedProjectScreenshotName));
+    }
+
     partial void OnCurseForgeApiKeyChanged(
         string value)
     {
@@ -2463,6 +2559,8 @@ public partial class MainWindowViewModel(
         CurrentProjectLogoImage?.Dispose();
         CurrentProjectLogoImage = null;
 
+        DisposeProjectScreenshots();
+
         if (CurrentProjectDirectory is null)
         {
             RaisePublishingMediaProperties();
@@ -2495,7 +2593,16 @@ public partial class MainWindowViewModel(
                 PublishingScreenshots.Add(
                     Path.GetFileName(
                         screenshotPath));
+
+                ProjectScreenshots.Add(
+                    new ProjectScreenshotItem(
+                        screenshotPath,
+                        new Bitmap(
+                            screenshotPath)));
             }
+
+            SelectedProjectScreenshot =
+                ProjectScreenshots.FirstOrDefault();
         }
         catch
         {
@@ -2503,10 +2610,35 @@ public partial class MainWindowViewModel(
             PublishingScreenshots.Clear();
             CurrentProjectLogoImage?.Dispose();
             CurrentProjectLogoImage = null;
+            DisposeProjectScreenshots();
         }
 
         RaisePublishingMediaProperties();
         RaiseProjectDashboardProperties();
+    }
+
+    private void DisposeProjectScreenshots()
+    {
+        SelectedProjectScreenshot = null;
+
+        foreach (var screenshot in
+                 ProjectScreenshots)
+        {
+            screenshot.Dispose();
+        }
+
+        ProjectScreenshots.Clear();
+
+        OnPropertyChanged(
+            nameof(HasProjectScreenshots));
+        OnPropertyChanged(
+            nameof(HasNoProjectScreenshots));
+        OnPropertyChanged(
+            nameof(CanShowPreviousProjectScreenshot));
+        OnPropertyChanged(
+            nameof(CanShowNextProjectScreenshot));
+        OnPropertyChanged(
+            nameof(SelectedProjectScreenshotName));
     }
 
     private void RaisePublishingMediaProperties()
@@ -2516,6 +2648,11 @@ public partial class MainWindowViewModel(
         OnPropertyChanged(nameof(PublishingLogoActionText));
         OnPropertyChanged(nameof(HasPublishingScreenshots));
         OnPropertyChanged(nameof(PublishingScreenshotsStatus));
+        OnPropertyChanged(nameof(HasProjectScreenshots));
+        OnPropertyChanged(nameof(HasNoProjectScreenshots));
+        OnPropertyChanged(nameof(CanShowPreviousProjectScreenshot));
+        OnPropertyChanged(nameof(CanShowNextProjectScreenshot));
+        OnPropertyChanged(nameof(SelectedProjectScreenshotName));
     }
 
     private void RaisePublishingProperties()
