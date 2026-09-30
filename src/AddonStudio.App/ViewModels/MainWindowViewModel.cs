@@ -511,6 +511,12 @@ public partial class MainWindowViewModel(
     public bool HasPublishingLogo =>
         !string.IsNullOrWhiteSpace(PublishingLogoFileName);
 
+    public bool HasCurrentProjectLogoImage =>
+        CurrentProjectLogoImage is not null;
+
+    public bool HasNoCurrentProjectLogoImage =>
+        !HasCurrentProjectLogoImage;
+
     public string PublishingLogoStatus =>
         HasPublishingLogo
             ? PublishingLogoFileName
@@ -1868,6 +1874,15 @@ public partial class MainWindowViewModel(
         OnPropertyChanged(nameof(HasPublishingLogo));
         OnPropertyChanged(nameof(PublishingLogoStatus));
         OnPropertyChanged(nameof(PublishingLogoActionText));
+    }
+
+    partial void OnCurrentProjectLogoImageChanged(
+        Bitmap? value)
+    {
+        OnPropertyChanged(
+            nameof(HasCurrentProjectLogoImage));
+        OnPropertyChanged(
+            nameof(HasNoCurrentProjectLogoImage));
     }
 
     partial void OnCurseForgeApiKeyChanged(
