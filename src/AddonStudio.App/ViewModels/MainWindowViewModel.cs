@@ -822,7 +822,8 @@ public partial class MainWindowViewModel(
         await OpenProjectAsync(SelectedProject);
     }
 
-    public async Task OpenSelectedProjectTreeItemAsync()
+    public async Task OpenSelectedProjectTreeItemAsync(
+        bool discardUnsavedChanges = false)
     {
         if (CurrentProjectDirectory is null ||
             SelectedProjectTreeItem is null)
@@ -843,13 +844,10 @@ public partial class MainWindowViewModel(
         }
 
         if (IsMarkdownDirty &&
-            !string.Equals(
-                MarkdownDocumentPath,
-                SelectedProjectTreeItem.FullPath,
-                StringComparison.OrdinalIgnoreCase))
+            !discardUnsavedChanges)
         {
             StatusMessage =
-                "Save or revert the current Markdown document before opening another file.";
+                "The current Markdown document has unsaved changes.";
             return;
         }
 
@@ -887,6 +885,13 @@ public partial class MainWindowViewModel(
     private Task OpenPublishingChangelogAsync() =>
         OpenPublishingContentAsync(
             PublishingContentKind.Changelog);
+
+    public Task OpenPublishingContentFromUiAsync(
+        PublishingContentKind kind,
+        bool discardUnsavedChanges = false) =>
+        OpenPublishingContentAsync(
+            kind,
+            discardUnsavedChanges);
 
     public async Task SetPublishingLogoAsync(
         string sourceFilePath)
@@ -1611,7 +1616,8 @@ public partial class MainWindowViewModel(
     }
 
     private async Task OpenPublishingContentAsync(
-        PublishingContentKind kind)
+        PublishingContentKind kind,
+        bool discardUnsavedChanges = false)
     {
         if (CurrentProjectDirectory is null)
         {
@@ -1625,13 +1631,10 @@ public partial class MainWindowViewModel(
             kind);
 
         if (IsMarkdownDirty &&
-            !string.Equals(
-                MarkdownDocumentPath,
-                file.Path,
-                StringComparison.OrdinalIgnoreCase))
+            !discardUnsavedChanges)
         {
             StatusMessage =
-                "Save or revert the current Markdown document before opening another file.";
+                "The current Markdown document has unsaved changes.";
             return;
         }
 
