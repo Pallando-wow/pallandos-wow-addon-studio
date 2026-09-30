@@ -14,6 +14,8 @@ public sealed class StudioSettingsTests
             Path.Combine(temp.Path, "Projects")).FullName;
         var wowPath = Directory.CreateDirectory(
             Path.Combine(temp.Path, "WoW", "Interface", "AddOns")).FullName;
+        var savedVariablesPath = Directory.CreateDirectory(
+            Path.Combine(temp.Path, "WoW", "WTF", "Account", "Test", "SavedVariables")).FullName;
         var settingsPath = Path.Combine(temp.Path, "settings.json");
 
         var store = new JsonStudioSettingsStore(settingsPath);
@@ -22,14 +24,24 @@ public sealed class StudioSettingsTests
             new StudioSettings
             {
                 ProjectRoot = projectRoot,
-                WowForeverAddOnsPath = wowPath
+                WowForeverAddOnsPath = wowPath,
+                SavedVariablesPath = savedVariablesPath,
+                CurseForgeApiKey = "test-api-key"
             });
 
         var loaded = store.Load();
 
         Assert.Equal(projectRoot, loaded.ProjectRoot);
         Assert.Equal(wowPath, loaded.WowForeverAddOnsPath);
+        Assert.Equal(savedVariablesPath, loaded.SavedVariablesPath);
+        Assert.Empty(loaded.CurseForgeApiKey);
         Assert.True(StudioSettingsValidator.IsComplete(loaded));
+
+        var json = File.ReadAllText(settingsPath);
+        Assert.DoesNotContain(
+            "test-api-key",
+            json,
+            StringComparison.Ordinal);
     }
 
     [Fact]
@@ -46,6 +58,77 @@ public sealed class StudioSettingsTests
 
         Assert.Single(issues);
         Assert.Contains("WoW Forever AddOns path", issues[0]);
+    }
+
+    [Fact]
+    public void Validator_AllowsEmptySavedVariablesPath()
+    {
+        using var temp = new TempDirectory();
+
+        var settings = new StudioSettings
+        {
+            ProjectRoot = temp.Path,
+            WowForeverAddOnsPath = temp.Path
+        };
+
+        var issues = StudioSettingsValidator.Validate(settings);
+
+        Assert.Empty(issues);
+    }
+
+    [Fact]
+    public void Validator_RejectsMissingSavedVariablesPathWhenConfigured()
+    {
+        using var temp = new TempDirectory();
+
+        var settings = new StudioSettings
+        {
+            ProjectRoot = temp.Path,
+            WowForeverAddOnsPath = temp.Path,
+            SavedVariablesPath =
+                Path.Combine(
+                    temp.Path,
+                    "MissingSavedVariables")
+        };
+
+        var issues = StudioSettingsValidator.Validate(settings);
+
+        Assert.Single(issues);
+        Assert.Contains(
+            "WoW SavedVariables path",
+            issues[0]);
+    }
+
+    [Fact]
+    public void Store_LoadsLegacyPlaintextApiKeyForMigration()
+    {
+        using var temp = new TempDirectory();
+
+        var settingsPath =
+            Path.Combine(
+                temp.Path,
+                "settings.json");
+
+        File.WriteAllText(
+            settingsPath,
+            """
+            {
+              "projectRoot": "C:\\Projects",
+              "wowForeverAddOnsPath": "C:\\WoW\\AddOns",
+              "savedVariablesPath": "",
+              "curseForgeApiKey": "legacy-key"
+            }
+            """);
+
+        var store =
+            new JsonStudioSettingsStore(
+                settingsPath);
+
+        var loaded = store.Load();
+
+        Assert.Equal(
+            "legacy-key",
+            loaded.CurseForgeApiKey);
     }
 
     [Fact]

@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\AddonStudio.Core\AddonStudio.Core.csproj" />
+    <ProjectReference Include="..\AddonStudio.Application\AddonStudio.Application.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

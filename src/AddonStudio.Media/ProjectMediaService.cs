@@ -124,6 +124,53 @@ public sealed class ProjectMediaService
         return destinationPath;
     }
 
+    public void RemoveScreenshot(
+        string projectDirectory,
+        string screenshotFilePath)
+    {
+        var projectPath =
+            RequireProjectDirectory(
+                projectDirectory);
+
+        var screenshotPath =
+            Path.GetFullPath(
+                screenshotFilePath);
+
+        var screenshotsDirectory =
+            Path.GetFullPath(
+                Path.Combine(
+                    projectPath,
+                    ProjectLayout.MediaDirectoryName,
+                    ProjectLayout.ScreenshotsDirectoryName));
+
+        var screenshotDirectory =
+            Path.GetDirectoryName(
+                screenshotPath);
+
+        if (!string.Equals(
+                screenshotDirectory,
+                screenshotsDirectory,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                "The selected file is not a project screenshot.");
+        }
+
+        if (!IsSupportedScreenshot(
+                screenshotPath))
+        {
+            throw new InvalidDataException(
+                "Only PNG or JPEG project screenshots can be removed.");
+        }
+
+        if (File.Exists(
+                screenshotPath))
+        {
+            File.Delete(
+                screenshotPath);
+        }
+    }
+
     public async Task<IReadOnlyList<string>> AddScreenshotsAsync(
         string projectDirectory,
         IReadOnlyList<string> sourceFilePaths,

@@ -7,7 +7,9 @@ using AddonStudio.Application.WowData;
 using AddonStudio.Core.Projects;
 using AddonStudio.Core.Publishing;
 using AddonStudio.Media;
+using AddonStudio.Platforms.CurseForge;
 using AddonStudio.Wow.Toc;
+using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -60,8 +62,48 @@ public sealed record CollectorValidationIssueRow(
     string Code,
     string Message);
 
+public partial class CurseForgeCategoryChoice(
+    int id,
+    string name) : ObservableObject
+{
+    public int Id { get; } = id;
+
+    public string Name { get; } = name;
+
+    public event EventHandler? SelectionChanged;
+
+    [ObservableProperty]
+    private bool isSelected;
+
+    [ObservableProperty]
+    private bool canSelectAdditional = true;
+
+    partial void OnIsSelectedChanged(bool value) =>
+        SelectionChanged?.Invoke(
+            this,
+            EventArgs.Empty);
+}
+
+public sealed class ProjectScreenshotItem(
+    string fullPath,
+    Bitmap image) : IDisposable
+{
+    public string FullPath { get; } = fullPath;
+
+    public string FileName { get; } =
+        Path.GetFileName(fullPath);
+
+    public Bitmap Image { get; } = image;
+
+    public void Dispose() =>
+        Image.Dispose();
+}
+
 public partial class MainWindowViewModel(
     AddonProjectService addonProjectService,
+    ProjectCurseForgeSettingsService projectCurseForgeSettingsService,
+    CurseForgeDataSourceClient curseForgeDataSourceClient,
+    ILocalSecretStore localSecretStore,
     IStudioSettingsStore settingsStore,
     ProjectCatalogService projectCatalogService,
     ProjectExplorerService projectExplorerService,
@@ -71,6 +113,9 @@ public partial class MainWindowViewModel(
     TocDocumentReader tocDocumentReader,
     IPallandoCollectorReader pallandoCollectorReader) : ViewModelBase
 {
+    private const string CurseForgeApiKeySecretName =
+        "curseforge-api-key";
+
     public string StudioVersion =>
         typeof(MainWindowViewModel).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
 
@@ -149,6 +194,31 @@ public partial class MainWindowViewModel(
     private string wowForeverAddOnsPath = string.Empty;
 
     [ObservableProperty]
+    private string savedVariablesPath = string.Empty;
+
+    [ObservableProperty]
+    private string curseForgeApiKey = string.Empty;
+
+    [ObservableProperty]
+    private bool curseForgeDataSourceReady;
+
+    [ObservableProperty]
+    private string curseForgeDataSourceStatus =
+        "Not configured";
+
+    [ObservableProperty]
+    private CurseForgeCategoryChoice?
+        selectedCurseForgeMainCategory;
+
+    [ObservableProperty]
+    private string curseForgeMainCategorySearchText =
+        string.Empty;
+
+    [ObservableProperty]
+    private string curseForgeAdditionalCategorySearchText =
+        string.Empty;
+
+    [ObservableProperty]
     private bool setupRequired;
 
     [ObservableProperty]
@@ -193,7 +263,60 @@ public partial class MainWindowViewModel(
     [ObservableProperty]
     private string publishingLogoFileName = string.Empty;
 
+    [ObservableProperty]
+    private string publishingSummaryText = string.Empty;
+
+    [ObservableProperty]
+    private string publishingDescriptionText = string.Empty;
+
+    [ObservableProperty]
+    private string publishingChangelogText = string.Empty;
+
+    [ObservableProperty]
+    private bool publishingWorkspaceDirty;
+
+    [ObservableProperty]
+    private Bitmap? currentProjectLogoImage;
+
+    [ObservableProperty]
+    private ProjectScreenshotItem?
+        selectedProjectScreenshot;
+
     public ObservableCollection<string> PublishingScreenshots { get; } = [];
+
+    public ObservableCollection<ProjectScreenshotItem>
+        ProjectScreenshots { get; } = [];
+
+    public ObservableCollection<CurseForgeCategoryChoice>
+        CurseForgeCategories { get; } = [];
+
+    public ObservableCollection<CurseForgeCategoryChoice>
+        FilteredCurseForgeMainCategories { get; } = [];
+
+    public ObservableCollection<CurseForgeCategoryChoice>
+        FilteredCurseForgeAdditionalCategories { get; } = [];
+
+    [ObservableProperty]
+    private string curseForgeProjectId = string.Empty;
+
+    [ObservableProperty]
+    private string curseForgeSlug = string.Empty;
+
+    [ObservableProperty]
+    private string curseForgeMainCategoryId = string.Empty;
+
+    [ObservableProperty]
+    private string curseForgeAdditionalCategoryIds = string.Empty;
+
+    [ObservableProperty]
+    private string curseForgeLicense = string.Empty;
+
+    [ObservableProperty]
+    private string curseForgeDistributionSelection =
+        "Not configured";
+
+    [ObservableProperty]
+    private string currentProjectTocVersion = "—";
 
     [ObservableProperty]
     private string? markdownDocumentPath;
@@ -213,9 +336,19 @@ public partial class MainWindowViewModel(
 
     private string savedMarkdownText = string.Empty;
     private PublishingContentKind? markdownPublishingKind;
+    private string savedPublishingSummaryText = string.Empty;
+    private string savedPublishingDescriptionText = string.Empty;
+    private string savedPublishingChangelogText = string.Empty;
+    private string? publishingWorkspaceProjectDirectory;
+    private bool suppressPublishingWorkspaceDirty;
+    private bool publishingChangelogLoadedFromLegacy;
+    private ProjectCatalogEntry? currentProject;
 
     public MainWindowViewModel(
         AddonProjectService addonProjectService,
+        ProjectCurseForgeSettingsService projectCurseForgeSettingsService,
+        CurseForgeDataSourceClient curseForgeDataSourceClient,
+        ILocalSecretStore localSecretStore,
         IStudioSettingsStore settingsStore,
         ProjectCatalogService projectCatalogService,
         ProjectExplorerService projectExplorerService,
@@ -227,6 +360,9 @@ public partial class MainWindowViewModel(
         bool initialize = true)
         : this(
             addonProjectService,
+            projectCurseForgeSettingsService,
+            curseForgeDataSourceClient,
+            localSecretStore,
             settingsStore,
             projectCatalogService,
             projectExplorerService,
@@ -240,6 +376,36 @@ public partial class MainWindowViewModel(
 
         projectRoot = settings.ProjectRoot;
         wowForeverAddOnsPath = settings.WowForeverAddOnsPath;
+        savedVariablesPath = settings.SavedVariablesPath;
+
+        var protectedCurseForgeApiKey =
+            localSecretStore.Load(
+                CurseForgeApiKeySecretName);
+
+        if (!string.IsNullOrWhiteSpace(
+                protectedCurseForgeApiKey))
+        {
+            curseForgeApiKey =
+                protectedCurseForgeApiKey;
+        }
+        else if (!string.IsNullOrWhiteSpace(
+                     settings.CurseForgeApiKey))
+        {
+            curseForgeApiKey =
+                settings.CurseForgeApiKey.Trim();
+
+            localSecretStore.Save(
+                CurseForgeApiKeySecretName,
+                curseForgeApiKey);
+
+            // Rewrite settings without the legacy plaintext key.
+            settingsStore.Save(settings);
+        }
+
+        curseForgeDataSourceStatus =
+            string.IsNullOrWhiteSpace(curseForgeApiKey)
+                ? "Not configured"
+                : "Configured · not connected";
         setupRequired = !StudioSettingsValidator.IsComplete(settings);
         sidebar = setupRequired
             ? StudioSidebar.Settings
@@ -405,9 +571,25 @@ public partial class MainWindowViewModel(
         PublishingContentLayout.GetFileName(
             PublishingContentKind.Description);
 
+    public bool HasCurrentReleaseVersion =>
+        !string.IsNullOrWhiteSpace(
+            CurrentProjectTocVersion) &&
+        CurrentProjectTocVersion != "—";
+
+    public bool HasNoCurrentReleaseVersion =>
+        !HasCurrentReleaseVersion;
+
+    public string CurrentReleaseTitle =>
+        HasCurrentReleaseVersion
+            ? $"Current Release · {CurrentProjectTocVersion}"
+            : "Current Release · version unavailable";
+
     public string PublishingChangelogFileName =>
-        PublishingContentLayout.GetFileName(
-            PublishingContentKind.Changelog);
+        HasCurrentReleaseVersion
+            ? PublishingContentLayout
+                .GetReleaseChangelogRelativePath(
+                    CurrentProjectTocVersion)
+            : "Version unavailable";
 
     public string PublishingSummaryStatus =>
         GetPublishingStatus(
@@ -420,6 +602,34 @@ public partial class MainWindowViewModel(
     public string PublishingChangelogStatus =>
         GetPublishingStatus(
             PublishingContentKind.Changelog);
+
+    public bool PublishingReleaseDirty =>
+        !string.Equals(
+            PublishingChangelogText,
+            savedPublishingChangelogText,
+            StringComparison.Ordinal);
+
+    public string PublishingWorkspaceStatus =>
+        PublishingWorkspaceDirty
+            ? !HasCurrentReleaseVersion &&
+              PublishingReleaseDirty
+                ? "Unsaved changes · release version unavailable"
+                : "Unsaved changes"
+            : publishingChangelogLoadedFromLegacy
+                ? "Legacy changelog ready to migrate"
+                : "All changes saved";
+
+    public bool CanSavePublishingWorkspace =>
+        HasCurrentProject &&
+        (PublishingWorkspaceDirty ||
+         publishingChangelogLoadedFromLegacy) &&
+        (!PublishingReleaseDirty ||
+         HasCurrentReleaseVersion) &&
+        (!publishingChangelogLoadedFromLegacy ||
+         HasCurrentReleaseVersion);
+
+    public bool CanRevertPublishingWorkspace =>
+        PublishingWorkspaceDirty;
 
     public string PublishingSummaryActionText =>
         GetPublishingActionText(
@@ -439,6 +649,12 @@ public partial class MainWindowViewModel(
     public bool HasPublishingLogo =>
         !string.IsNullOrWhiteSpace(PublishingLogoFileName);
 
+    public bool HasCurrentProjectLogoImage =>
+        CurrentProjectLogoImage is not null;
+
+    public bool HasNoCurrentProjectLogoImage =>
+        !HasCurrentProjectLogoImage;
+
     public string PublishingLogoStatus =>
         HasPublishingLogo
             ? PublishingLogoFileName
@@ -456,6 +672,94 @@ public partial class MainWindowViewModel(
         HasPublishingScreenshots
             ? $"{PublishingScreenshots.Count} screenshot(s)"
             : "No screenshots";
+
+    public bool HasProjectScreenshots =>
+        ProjectScreenshots.Count > 0;
+
+    public bool HasNoProjectScreenshots =>
+        !HasProjectScreenshots;
+
+    public bool CanShowPreviousProjectScreenshot =>
+        SelectedProjectScreenshot is not null &&
+        ProjectScreenshots.IndexOf(
+            SelectedProjectScreenshot) > 0;
+
+    public bool CanShowNextProjectScreenshot =>
+        SelectedProjectScreenshot is not null &&
+        ProjectScreenshots.IndexOf(
+            SelectedProjectScreenshot) >= 0 &&
+        ProjectScreenshots.IndexOf(
+            SelectedProjectScreenshot) <
+            ProjectScreenshots.Count - 1;
+
+    public string SelectedProjectScreenshotName =>
+        SelectedProjectScreenshot?.FileName ??
+        "No screenshot selected";
+
+    public Bitmap? SelectedProjectScreenshotImage =>
+        SelectedProjectScreenshot?.Image;
+
+    public bool IsCurseForgeDataSourceConfigured =>
+        !string.IsNullOrWhiteSpace(
+            CurseForgeApiKey);
+
+    public bool CanUseCurseForgeProjectSettings =>
+        CurseForgeDataSourceReady;
+
+    public bool HasCurseForgeCategories =>
+        CurseForgeCategories.Count > 0;
+
+    public string CurseForgeAdditionalCategorySelectionStatus =>
+        $"{CurseForgeCategories.Count(category => category.IsSelected)} / 4 selected";
+
+    public IReadOnlyList<string> CurseForgeDistributionOptions { get; } =
+    [
+        "Not configured",
+        "Allowed",
+        "Blocked"
+    ];
+
+    public string CurseForgeProjectName =>
+        CurrentProjectName ?? "—";
+
+    public string CurseForgeBindingStatus =>
+        string.IsNullOrWhiteSpace(CurseForgeProjectId) &&
+        string.IsNullOrWhiteSpace(CurseForgeSlug)
+            ? "Not linked"
+            : "Configured locally";
+
+    public string CurseForgeScreenshotsStatus =>
+        PublishingScreenshotsStatus;
+
+    public string ProjectDashboardVersion =>
+        HasSelectedProjectTocMetadata
+            ? SelectedProjectTocVersion
+            : "—";
+
+    public string ProjectDashboardAuthor =>
+        HasSelectedProjectTocMetadata
+            ? SelectedProjectTocAuthor
+            : "—";
+
+    public string ProjectDashboardInterfaces =>
+        HasSelectedProjectTocMetadata
+            ? SelectedProjectTocInterfaces
+            : "—";
+
+    public string ProjectDashboardComponents =>
+        currentProject is null ||
+        currentProject.Manifest.Components.Count == 0
+            ? "None"
+            : string.Join(
+                ", ",
+                currentProject.Manifest.Components
+                    .Select(component =>
+                        component.Id));
+
+    public string ProjectDashboardCurseForgeStatus =>
+        !CurseForgeDataSourceReady
+            ? "Data source not connected"
+            : SelectedProjectCurseForge;
 
     public bool IsProjectSidebar =>
         Sidebar is
@@ -598,7 +902,7 @@ public partial class MainWindowViewModel(
     }
 
     [RelayCommand]
-    private void ShowPublishing()
+    private async Task ShowPublishing()
     {
         if (SetupRequired ||
             !HasCurrentProject)
@@ -610,6 +914,8 @@ public partial class MainWindowViewModel(
         WorkspaceTabIndex = 0;
         RefreshPublishingMedia();
         RaisePublishingProperties();
+
+        await LoadPublishingWorkspaceAsync();
     }
 
     [RelayCommand]
@@ -623,7 +929,297 @@ public partial class MainWindowViewModel(
 
         Sidebar = StudioSidebar.CurseForge;
         WorkspaceTabIndex = 0;
+        RefreshPublishingMedia();
+        RaisePublishingProperties();
     }
+
+    [RelayCommand]
+    private async Task SaveCurseForgeSettingsAsync()
+    {
+        if (currentProject is null ||
+            CurrentProjectDirectory is null)
+        {
+            StatusMessage =
+                "Open a project before editing CurseForge settings.";
+            return;
+        }
+
+        if (!CurseForgeDataSourceReady)
+        {
+            StatusMessage =
+                "Connect the CurseForge data source before editing CurseForge settings.";
+            return;
+        }
+
+        var additionalCategories =
+            CurseForgeCategories
+                .Where(category =>
+                    category.IsSelected)
+                .Select(category =>
+                    category.Id.ToString())
+                .ToArray();
+
+        if (additionalCategories.Length > 4)
+        {
+            StatusMessage =
+                "CurseForge supports at most four additional categories.";
+            return;
+        }
+
+        if (SelectedCurseForgeMainCategory is not null &&
+            additionalCategories.Contains(
+                SelectedCurseForgeMainCategory.Id.ToString(),
+                StringComparer.OrdinalIgnoreCase))
+        {
+            StatusMessage =
+                "The main category must not also be listed as an additional category.";
+            return;
+        }
+
+        var allowDistribution =
+            CurseForgeDistributionSelection switch
+            {
+                "Allowed" => true,
+                "Blocked" => false,
+                _ => (bool?)null
+            };
+
+        var configuration =
+            new CurseForgeConfiguration
+            {
+                ProjectId = CurseForgeProjectId,
+                Slug = CurseForgeSlug,
+                MainCategoryId =
+                    SelectedCurseForgeMainCategory?
+                        .Id.ToString(),
+                AdditionalCategoryIds =
+                    additionalCategories,
+                License = CurseForgeLicense,
+                AllowDistribution =
+                    allowDistribution
+            };
+
+        await RunOperationAsync(async () =>
+        {
+            var updatedManifest =
+                await projectCurseForgeSettingsService.SaveAsync(
+                    CurrentProjectDirectory,
+                    currentProject.Manifest,
+                    configuration);
+
+            var updatedProject =
+                new ProjectCatalogEntry(
+                    CurrentProjectDirectory,
+                    updatedManifest);
+
+            ReplaceProjectInCatalog(
+                updatedProject);
+
+            currentProject = updatedProject;
+            LoadCurseForgeSettings(
+                updatedManifest.CurseForge);
+
+            RefreshCurrentProjectTree();
+
+            StatusMessage =
+                "CurseForge settings saved to project.json.";
+        });
+    }
+
+    [RelayCommand]
+    private async Task TestCurseForgeDataSourceAsync()
+    {
+        if (!IsCurseForgeDataSourceConfigured)
+        {
+            CurseForgeDataSourceReady = false;
+            CurseForgeDataSourceStatus =
+                "Not configured";
+            ClearCurseForgeCategoryChoices();
+            StatusMessage =
+                "Enter a CurseForge API key first.";
+            return;
+        }
+
+        await RunOperationAsync(async () =>
+        {
+            try
+            {
+                CurseForgeDataSourceReady = false;
+                CurseForgeDataSourceStatus =
+                    "Connecting ...";
+                ClearCurseForgeCategoryChoices();
+
+                var snapshot =
+                    await curseForgeDataSourceClient
+                        .LoadWorldOfWarcraftAsync(
+                            CurseForgeApiKey);
+
+                var addonClass =
+                    snapshot.Categories
+                        .FirstOrDefault(category =>
+                            category.IsClass &&
+                            string.Equals(
+                                category.Name,
+                                "Addons",
+                                StringComparison.OrdinalIgnoreCase));
+
+                var projectCategories =
+                    snapshot.Categories
+                        .Where(category =>
+                            !category.IsClass &&
+                            (addonClass is null ||
+                             category.ClassId ==
+                             addonClass.Id))
+                        .OrderBy(category =>
+                            category.DisplayIndex)
+                        .ThenBy(category =>
+                            category.Name,
+                            StringComparer.OrdinalIgnoreCase)
+                        .ToArray();
+
+                foreach (var category in
+                         projectCategories)
+                {
+                    var choice =
+                        new CurseForgeCategoryChoice(
+                            category.Id,
+                            category.Name);
+
+                    choice.SelectionChanged +=
+                        CurseForgeCategory_SelectionChanged;
+
+                    CurseForgeCategories.Add(
+                        choice);
+                }
+
+                RefreshCurseForgeCategoryFilters();
+
+                CurseForgeDataSourceReady = true;
+                CurseForgeDataSourceStatus =
+                    $"Connected · {snapshot.Game.Name} · " +
+                    $"{CurseForgeCategories.Count} categories";
+
+                ApplyCurseForgeCategorySelections();
+
+                StatusMessage =
+                    "CurseForge data source connected.";
+            }
+            catch
+            {
+                CurseForgeDataSourceReady = false;
+                CurseForgeDataSourceStatus =
+                    "Connection failed";
+                ClearCurseForgeCategoryChoices();
+                throw;
+            }
+        });
+    }
+
+    private void ClearCurseForgeCategoryChoices()
+    {
+        foreach (var category in
+                 CurseForgeCategories)
+        {
+            category.SelectionChanged -=
+                CurseForgeCategory_SelectionChanged;
+        }
+
+        CurseForgeCategories.Clear();
+        FilteredCurseForgeMainCategories.Clear();
+        FilteredCurseForgeAdditionalCategories.Clear();
+        SelectedCurseForgeMainCategory = null;
+
+        OnPropertyChanged(
+            nameof(HasCurseForgeCategories));
+        OnPropertyChanged(
+            nameof(CurseForgeAdditionalCategorySelectionStatus));
+    }
+
+    private void CurseForgeCategory_SelectionChanged(
+        object? sender,
+        EventArgs e)
+    {
+        if (sender is not CurseForgeCategoryChoice category)
+        {
+            return;
+        }
+
+        var selectedCount =
+            CurseForgeCategories.Count(
+                choice =>
+                    choice.IsSelected);
+
+        if (category.IsSelected &&
+            selectedCount > 4)
+        {
+            category.IsSelected = false;
+            StatusMessage =
+                "CurseForge supports at most four additional categories.";
+            return;
+        }
+
+        UpdateCurseForgeAdditionalCategoryAvailability();
+        OnPropertyChanged(
+            nameof(CurseForgeAdditionalCategorySelectionStatus));
+    }
+
+    private void RefreshCurseForgeCategoryFilters()
+    {
+        FilteredCurseForgeMainCategories.Clear();
+
+        foreach (var category in
+                 CurseForgeCategories.Where(category =>
+                     MatchesCategorySearch(
+                         category,
+                         CurseForgeMainCategorySearchText)))
+        {
+            FilteredCurseForgeMainCategories.Add(
+                category);
+        }
+
+        FilteredCurseForgeAdditionalCategories.Clear();
+
+        foreach (var category in
+                 CurseForgeCategories.Where(category =>
+                     category !=
+                         SelectedCurseForgeMainCategory &&
+                     MatchesCategorySearch(
+                         category,
+                         CurseForgeAdditionalCategorySearchText)))
+        {
+            FilteredCurseForgeAdditionalCategories.Add(
+                category);
+        }
+
+        UpdateCurseForgeAdditionalCategoryAvailability();
+    }
+
+    private void UpdateCurseForgeAdditionalCategoryAvailability()
+    {
+        var selectedCount =
+            CurseForgeCategories.Count(
+                category =>
+                    category.IsSelected);
+
+        foreach (var category in
+                 CurseForgeCategories)
+        {
+            category.CanSelectAdditional =
+                category.IsSelected ||
+                selectedCount < 4;
+        }
+
+        OnPropertyChanged(
+            nameof(CurseForgeAdditionalCategorySelectionStatus));
+    }
+
+    private static bool MatchesCategorySearch(
+        CurseForgeCategoryChoice category,
+        string searchText) =>
+        string.IsNullOrWhiteSpace(searchText) ||
+        category.Name.Contains(
+            searchText.Trim(),
+            StringComparison.OrdinalIgnoreCase);
 
     [RelayCommand]
     private void ShowSettings()
@@ -676,7 +1272,13 @@ public partial class MainWindowViewModel(
             return;
         }
 
-        CollectorSourceFile = string.Empty;
+        CollectorSourceFile =
+            string.IsNullOrWhiteSpace(
+                SavedVariablesPath)
+                ? string.Empty
+                : PallandoCollectorSource
+                    .ResolveFromSavedVariablesDirectory(
+                        SavedVariablesPath);
         ClearCollectorImport();
         ActionTabTitle = "Collector Data";
         IsCreateAddonAction = false;
@@ -701,7 +1303,9 @@ public partial class MainWindowViewModel(
         var settings = new StudioSettings
         {
             ProjectRoot = ProjectRoot.Trim(),
-            WowForeverAddOnsPath = WowForeverAddOnsPath.Trim()
+            WowForeverAddOnsPath = WowForeverAddOnsPath.Trim(),
+            SavedVariablesPath = SavedVariablesPath.Trim(),
+            CurseForgeApiKey = CurseForgeApiKey.Trim()
         };
 
         var issues = StudioSettingsValidator.Validate(settings);
@@ -715,8 +1319,28 @@ public partial class MainWindowViewModel(
 
         settingsStore.Save(settings);
 
+        if (string.IsNullOrWhiteSpace(
+                settings.CurseForgeApiKey))
+        {
+            localSecretStore.Delete(
+                CurseForgeApiKeySecretName);
+        }
+        else
+        {
+            localSecretStore.Save(
+                CurseForgeApiKeySecretName,
+                settings.CurseForgeApiKey);
+        }
+
         ProjectRoot = Path.GetFullPath(settings.ProjectRoot);
         WowForeverAddOnsPath = Path.GetFullPath(settings.WowForeverAddOnsPath);
+        SavedVariablesPath =
+            string.IsNullOrWhiteSpace(
+                settings.SavedVariablesPath)
+                ? string.Empty
+                : Path.GetFullPath(
+                    settings.SavedVariablesPath);
+        CurseForgeApiKey = settings.CurseForgeApiKey;
         SetupRequired = false;
         Sidebar = StudioSidebar.Start;
         WorkspaceTabIndex = 0;
@@ -729,9 +1353,16 @@ public partial class MainWindowViewModel(
     public void ResetSettings()
     {
         settingsStore.Delete();
+        localSecretStore.DeleteAll();
 
         ProjectRoot = string.Empty;
         WowForeverAddOnsPath = string.Empty;
+        SavedVariablesPath = string.Empty;
+        CollectorSourceFile = string.Empty;
+        CurseForgeApiKey = string.Empty;
+        CurseForgeDataSourceReady = false;
+        CurseForgeDataSourceStatus = "Not configured";
+        ClearCurseForgeCategoryChoices();
         SetupRequired = true;
         Sidebar = StudioSidebar.Settings;
         WorkspaceTabIndex = 0;
@@ -743,8 +1374,15 @@ public partial class MainWindowViewModel(
         CurrentProjectTree.Clear();
         CurrentRuntimeAddons.Clear();
         ClearMarkdownDocument();
+        ClearPublishingWorkspace();
+        CurrentProjectLogoImage?.Dispose();
+        CurrentProjectLogoImage = null;
+        DisposeProjectScreenshots();
 
         SelectedProject = null;
+        currentProject = null;
+        LoadCurseForgeSettings(null);
+        CurrentProjectTocVersion = "—";
         CurrentProjectName = null;
         CurrentProjectDirectory = null;
         CurrentProjectTypeName = null;
@@ -872,6 +1510,113 @@ public partial class MainWindowViewModel(
     }
 
     [RelayCommand]
+    private async Task SavePublishingWorkspaceAsync()
+    {
+        if ((!PublishingWorkspaceDirty &&
+             !publishingChangelogLoadedFromLegacy) ||
+            CurrentProjectDirectory is null)
+        {
+            return;
+        }
+
+        if ((PublishingReleaseDirty ||
+             publishingChangelogLoadedFromLegacy) &&
+            !HasCurrentReleaseVersion)
+        {
+            StatusMessage =
+                "The .toc version is required before saving the release changelog.";
+            return;
+        }
+
+        await RunOperationAsync(async () =>
+        {
+            if (!string.Equals(
+                    PublishingSummaryText,
+                    savedPublishingSummaryText,
+                    StringComparison.Ordinal))
+            {
+                await publishingContentService.WriteAsync(
+                    CurrentProjectDirectory,
+                    PublishingContentKind.Summary,
+                    PublishingSummaryText);
+            }
+
+            if (!string.Equals(
+                    PublishingDescriptionText,
+                    savedPublishingDescriptionText,
+                    StringComparison.Ordinal))
+            {
+                await publishingContentService.WriteAsync(
+                    CurrentProjectDirectory,
+                    PublishingContentKind.Description,
+                    PublishingDescriptionText);
+            }
+
+            if (PublishingReleaseDirty ||
+                publishingChangelogLoadedFromLegacy)
+            {
+                await publishingContentService
+                    .WriteReleaseChangelogAsync(
+                        CurrentProjectDirectory,
+                        CurrentProjectTocVersion,
+                        PublishingChangelogText,
+                        removeLegacyFile: true);
+
+                publishingChangelogLoadedFromLegacy =
+                    false;
+            }
+
+            savedPublishingSummaryText =
+                PublishingSummaryText;
+            savedPublishingDescriptionText =
+                PublishingDescriptionText;
+            savedPublishingChangelogText =
+                PublishingChangelogText;
+            PublishingWorkspaceDirty = false;
+
+            RefreshCurrentProjectTree();
+            RaisePublishingProperties();
+
+            if (SelectedProject is not null &&
+                string.Equals(
+                    SelectedProject.ProjectDirectory,
+                    CurrentProjectDirectory,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                _ = LoadSelectedProjectPreviewMetadataAsync(
+                    SelectedProject);
+            }
+
+            StatusMessage =
+                "Publishing content saved.";
+        });
+    }
+
+    [RelayCommand]
+    private void RevertPublishingWorkspace()
+    {
+        suppressPublishingWorkspaceDirty = true;
+
+        try
+        {
+            PublishingSummaryText =
+                savedPublishingSummaryText;
+            PublishingDescriptionText =
+                savedPublishingDescriptionText;
+            PublishingChangelogText =
+                savedPublishingChangelogText;
+        }
+        finally
+        {
+            suppressPublishingWorkspaceDirty = false;
+        }
+
+        PublishingWorkspaceDirty = false;
+        StatusMessage =
+            "Publishing changes reverted.";
+    }
+
+    [RelayCommand]
     private Task OpenPublishingSummaryAsync() =>
         OpenPublishingContentAsync(
             PublishingContentKind.Summary);
@@ -947,6 +1692,77 @@ public partial class MainWindowViewModel(
         });
     }
 
+    public async Task RemovePublishingScreenshotAsync(
+        ProjectScreenshotItem screenshot)
+    {
+        ArgumentNullException.ThrowIfNull(
+            screenshot);
+
+        if (CurrentProjectDirectory is null)
+        {
+            StatusMessage =
+                "Open a project before removing screenshots.";
+            return;
+        }
+
+        var fileName =
+            screenshot.FileName;
+
+        await RunOperationAsync(() =>
+        {
+            projectMediaService.RemoveScreenshot(
+                CurrentProjectDirectory,
+                screenshot.FullPath);
+
+            RefreshPublishingMedia();
+            RefreshCurrentProjectTree();
+
+            StatusMessage =
+                $"Screenshot '{fileName}' removed.";
+
+            return Task.CompletedTask;
+        });
+    }
+
+    [RelayCommand]
+    private void ShowPreviousProjectScreenshot()
+    {
+        if (SelectedProjectScreenshot is null)
+        {
+            return;
+        }
+
+        var index =
+            ProjectScreenshots.IndexOf(
+                SelectedProjectScreenshot);
+
+        if (index > 0)
+        {
+            SelectedProjectScreenshot =
+                ProjectScreenshots[index - 1];
+        }
+    }
+
+    [RelayCommand]
+    private void ShowNextProjectScreenshot()
+    {
+        if (SelectedProjectScreenshot is null)
+        {
+            return;
+        }
+
+        var index =
+            ProjectScreenshots.IndexOf(
+                SelectedProjectScreenshot);
+
+        if (index >= 0 &&
+            index < ProjectScreenshots.Count - 1)
+        {
+            SelectedProjectScreenshot =
+                ProjectScreenshots[index + 1];
+        }
+    }
+
     [RelayCommand]
     private void ShowMarkdownEditor() =>
         MarkdownEditorMode = MarkdownEditorMode.Editor;
@@ -973,10 +1789,31 @@ public partial class MainWindowViewModel(
         {
             if (markdownPublishingKind is PublishingContentKind kind)
             {
-                await publishingContentService.WriteAsync(
-                    CurrentProjectDirectory,
-                    kind,
-                    MarkdownText);
+                if (kind == PublishingContentKind.Changelog)
+                {
+                    if (!HasCurrentReleaseVersion)
+                    {
+                        throw new InvalidOperationException(
+                            "The .toc version is required before saving the release changelog.");
+                    }
+
+                    await publishingContentService
+                        .WriteReleaseChangelogAsync(
+                            CurrentProjectDirectory,
+                            CurrentProjectTocVersion,
+                            MarkdownText,
+                            removeLegacyFile: true);
+
+                    publishingChangelogLoadedFromLegacy =
+                        false;
+                }
+                else
+                {
+                    await publishingContentService.WriteAsync(
+                        CurrentProjectDirectory,
+                        kind,
+                        MarkdownText);
+                }
 
                 RefreshCurrentProjectTree();
                 RaisePublishingProperties();
@@ -1030,7 +1867,7 @@ public partial class MainWindowViewModel(
         StatusMessage = "Markdown document closed.";
     }
 
-    public Task OpenProjectAsync(
+    public async Task OpenProjectAsync(
         ProjectCatalogEntry project)
     {
         ArgumentNullException.ThrowIfNull(project);
@@ -1046,18 +1883,32 @@ public partial class MainWindowViewModel(
         {
             StatusMessage =
                 "Save or revert the current Markdown document before switching projects.";
-            return Task.CompletedTask;
+            return;
+        }
+
+        if (changesProject && PublishingWorkspaceDirty)
+        {
+            StatusMessage =
+                "Save or revert the Publishing changes before switching projects.";
+            return;
         }
 
         if (changesProject)
         {
             ClearMarkdownDocument();
+            ClearPublishingWorkspace();
         }
 
+        currentProject = project;
         CurrentProjectName = project.Name;
         CurrentProjectDirectory = project.ProjectDirectory;
         CurrentProjectTypeName = project.TypeName;
         CurrentPrimaryAddon = project.PrimaryAddon;
+        LoadCurseForgeSettings(
+            project.Manifest.CurseForge);
+        CurrentProjectTocVersion = "—";
+        await LoadCurrentProjectTocVersionAsync(
+            project);
 
         CurrentRuntimeAddons.Clear();
 
@@ -1075,11 +1926,12 @@ public partial class MainWindowViewModel(
 
         SelectedProject = project;
         SelectedProjectTreeItem = null;
+        RefreshPublishingMedia();
+        RaisePublishingProperties();
+        RaiseProjectDashboardProperties();
         Sidebar = StudioSidebar.ProjectOverview;
         WorkspaceTabIndex = 0;
         StatusMessage = $"Project '{project.Name}' opened.";
-
-        return Task.CompletedTask;
     }
 
     public async Task CreateAddonAsync()
@@ -1290,6 +2142,7 @@ public partial class MainWindowViewModel(
         OnPropertyChanged(nameof(SelectedProjectDirectory));
 
         ResetSelectedProjectPreviewMetadata();
+        RaiseProjectDashboardProperties();
 
         if (value is not null)
         {
@@ -1427,6 +2280,7 @@ public partial class MainWindowViewModel(
                     : string.Join(" · ", savedVariables);
 
             HasSelectedProjectTocMetadata = true;
+            RaiseProjectDashboardProperties();
         }
         catch (Exception exception)
             when (exception is IOException
@@ -1514,12 +2368,170 @@ public partial class MainWindowViewModel(
     partial void OnHasMarkdownDocumentChanged(bool value) =>
         OnPropertyChanged(nameof(CanCloseMarkdownDocument));
 
+    partial void OnPublishingSummaryTextChanged(
+        string value) =>
+        UpdatePublishingWorkspaceDirty();
+
+    partial void OnPublishingDescriptionTextChanged(
+        string value) =>
+        UpdatePublishingWorkspaceDirty();
+
+    partial void OnPublishingChangelogTextChanged(
+        string value) =>
+        UpdatePublishingWorkspaceDirty();
+
+    partial void OnPublishingWorkspaceDirtyChanged(
+        bool value)
+    {
+        OnPropertyChanged(
+            nameof(PublishingWorkspaceStatus));
+        OnPropertyChanged(
+            nameof(CanSavePublishingWorkspace));
+        OnPropertyChanged(
+            nameof(CanRevertPublishingWorkspace));
+        OnPropertyChanged(
+            nameof(PublishingReleaseDirty));
+    }
+
+    private void UpdatePublishingWorkspaceDirty()
+    {
+        if (suppressPublishingWorkspaceDirty)
+        {
+            return;
+        }
+
+        PublishingWorkspaceDirty =
+            !string.Equals(
+                PublishingSummaryText,
+                savedPublishingSummaryText,
+                StringComparison.Ordinal) ||
+            !string.Equals(
+                PublishingDescriptionText,
+                savedPublishingDescriptionText,
+                StringComparison.Ordinal) ||
+            !string.Equals(
+                PublishingChangelogText,
+                savedPublishingChangelogText,
+                StringComparison.Ordinal);
+
+        OnPropertyChanged(
+            nameof(PublishingReleaseDirty));
+        OnPropertyChanged(
+            nameof(PublishingWorkspaceStatus));
+        OnPropertyChanged(
+            nameof(CanSavePublishingWorkspace));
+    }
+
     partial void OnPublishingLogoFileNameChanged(
         string value)
     {
         OnPropertyChanged(nameof(HasPublishingLogo));
         OnPropertyChanged(nameof(PublishingLogoStatus));
         OnPropertyChanged(nameof(PublishingLogoActionText));
+    }
+
+    partial void OnCurrentProjectLogoImageChanged(
+        Bitmap? value)
+    {
+        OnPropertyChanged(
+            nameof(HasCurrentProjectLogoImage));
+        OnPropertyChanged(
+            nameof(HasNoCurrentProjectLogoImage));
+    }
+
+    partial void OnSelectedProjectScreenshotChanged(
+        ProjectScreenshotItem? value)
+    {
+        OnPropertyChanged(
+            nameof(CanShowPreviousProjectScreenshot));
+        OnPropertyChanged(
+            nameof(CanShowNextProjectScreenshot));
+        OnPropertyChanged(
+            nameof(SelectedProjectScreenshotName));
+        OnPropertyChanged(
+            nameof(SelectedProjectScreenshotImage));
+    }
+
+    partial void OnCurseForgeApiKeyChanged(
+        string value)
+    {
+        CurseForgeDataSourceReady = false;
+        ClearCurseForgeCategoryChoices();
+        CurseForgeDataSourceStatus =
+            string.IsNullOrWhiteSpace(value)
+                ? "Not configured"
+                : "Configured · not connected";
+
+        OnPropertyChanged(
+            nameof(IsCurseForgeDataSourceConfigured));
+        OnPropertyChanged(
+            nameof(CanUseCurseForgeProjectSettings));
+        OnPropertyChanged(
+            nameof(HasCurseForgeCategories));
+    }
+
+    partial void OnCurseForgeDataSourceReadyChanged(
+        bool value)
+    {
+        OnPropertyChanged(
+            nameof(CanUseCurseForgeProjectSettings));
+        OnPropertyChanged(
+            nameof(ProjectDashboardCurseForgeStatus));
+    }
+
+    partial void OnSelectedCurseForgeMainCategoryChanged(
+        CurseForgeCategoryChoice? value)
+    {
+        if (value?.IsSelected == true)
+        {
+            value.IsSelected = false;
+        }
+
+        if (value is not null &&
+            !string.IsNullOrWhiteSpace(
+                CurseForgeMainCategorySearchText))
+        {
+            CurseForgeMainCategorySearchText =
+                string.Empty;
+            return;
+        }
+
+        RefreshCurseForgeCategoryFilters();
+    }
+
+    partial void OnCurseForgeMainCategorySearchTextChanged(
+        string value) =>
+        RefreshCurseForgeCategoryFilters();
+
+    partial void OnCurseForgeAdditionalCategorySearchTextChanged(
+        string value) =>
+        RefreshCurseForgeCategoryFilters();
+
+    partial void OnCurseForgeProjectIdChanged(
+        string value) =>
+        OnPropertyChanged(nameof(CurseForgeBindingStatus));
+
+    partial void OnCurseForgeSlugChanged(
+        string value) =>
+        OnPropertyChanged(nameof(CurseForgeBindingStatus));
+
+    partial void OnCurrentProjectTocVersionChanged(
+        string value)
+    {
+        OnPropertyChanged(
+            nameof(HasCurrentReleaseVersion));
+        OnPropertyChanged(
+            nameof(HasNoCurrentReleaseVersion));
+        OnPropertyChanged(
+            nameof(CurrentReleaseTitle));
+        OnPropertyChanged(
+            nameof(PublishingChangelogFileName));
+        OnPropertyChanged(
+            nameof(PublishingChangelogStatus));
+        OnPropertyChanged(
+            nameof(PublishingWorkspaceStatus));
+        OnPropertyChanged(
+            nameof(CanSavePublishingWorkspace));
     }
 
     partial void OnCurrentProjectDirectoryChanged(
@@ -1543,6 +2555,7 @@ public partial class MainWindowViewModel(
         OnPropertyChanged(nameof(HasCurrentProject));
         OnPropertyChanged(nameof(HasNoCurrentProject));
         OnPropertyChanged(nameof(WorkspaceTitle));
+        OnPropertyChanged(nameof(CurseForgeProjectName));
     }
 
     private bool IsSelectedProjectDirectory(
@@ -1572,6 +2585,186 @@ public partial class MainWindowViewModel(
                     Path.DirectorySeparatorChar,
                     Path.AltDirectorySeparatorChar),
             StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void LoadCurseForgeSettings(
+        CurseForgeConfiguration? configuration)
+    {
+        CurseForgeProjectId =
+            configuration?.ProjectId ?? string.Empty;
+        CurseForgeSlug =
+            configuration?.Slug ?? string.Empty;
+        CurseForgeMainCategoryId =
+            configuration?.MainCategoryId ?? string.Empty;
+        CurseForgeAdditionalCategoryIds =
+            configuration is null ||
+            configuration.AdditionalCategoryIds.Count == 0
+                ? string.Empty
+                : string.Join(
+                    ", ",
+                    configuration.AdditionalCategoryIds);
+        CurseForgeLicense =
+            configuration?.License ?? string.Empty;
+        CurseForgeDistributionSelection =
+            configuration?.AllowDistribution switch
+            {
+                true => "Allowed",
+                false => "Blocked",
+                null => "Not configured"
+            };
+
+        ApplyCurseForgeCategorySelections();
+    }
+
+    private void ApplyCurseForgeCategorySelections()
+    {
+        var additionalCategoryIds =
+            ParseAdditionalCategoryIds(
+                CurseForgeAdditionalCategoryIds)
+                .ToHashSet(
+                    StringComparer.OrdinalIgnoreCase);
+
+        SelectedCurseForgeMainCategory =
+            CurseForgeCategories
+                .FirstOrDefault(category =>
+                    string.Equals(
+                        category.Id.ToString(),
+                        CurseForgeMainCategoryId,
+                        StringComparison.OrdinalIgnoreCase));
+
+        foreach (var category in
+                 CurseForgeCategories)
+        {
+            category.IsSelected =
+                additionalCategoryIds.Contains(
+                    category.Id.ToString());
+        }
+
+        RefreshCurseForgeCategoryFilters();
+    }
+
+    private static IReadOnlyList<string> ParseAdditionalCategoryIds(
+        string value) =>
+        value
+            .Split(
+                [',', ';', '\r', '\n'],
+                StringSplitOptions.RemoveEmptyEntries |
+                StringSplitOptions.TrimEntries)
+            .Where(category =>
+                !string.IsNullOrWhiteSpace(category))
+            .Distinct(
+                StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private void ReplaceProjectInCatalog(
+        ProjectCatalogEntry updatedProject)
+    {
+        for (var index = 0;
+             index < Projects.Count;
+             index++)
+        {
+            if (!string.Equals(
+                    Projects[index].ProjectDirectory,
+                    updatedProject.ProjectDirectory,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            Projects[index] = updatedProject;
+            break;
+        }
+
+        if (SelectedProject is not null &&
+            string.Equals(
+                SelectedProject.ProjectDirectory,
+                updatedProject.ProjectDirectory,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            SelectedProject = updatedProject;
+        }
+    }
+
+    private async Task LoadCurrentProjectTocVersionAsync(
+        ProjectCatalogEntry project)
+    {
+        try
+        {
+            var runtimeAddon =
+                !string.IsNullOrWhiteSpace(
+                    project.PrimaryAddon)
+                    ? project.PrimaryAddon
+                    : project.Manifest.Runtime.Addons
+                        .FirstOrDefault();
+
+            if (string.IsNullOrWhiteSpace(runtimeAddon))
+            {
+                return;
+            }
+
+            var addonDirectory = Path.Combine(
+                project.ProjectDirectory,
+                ProjectLayout.RuntimeDirectoryName,
+                runtimeAddon);
+
+            if (!Directory.Exists(addonDirectory))
+            {
+                return;
+            }
+
+            var tocPath =
+                Directory
+                    .EnumerateFiles(
+                        addonDirectory,
+                        "*.toc",
+                        SearchOption.TopDirectoryOnly)
+                    .OrderBy(
+                        path => path,
+                        StringComparer.OrdinalIgnoreCase)
+                    .FirstOrDefault(path =>
+                        string.Equals(
+                            Path.GetFileNameWithoutExtension(path),
+                            runtimeAddon,
+                            StringComparison.OrdinalIgnoreCase))
+                ?? Directory
+                    .EnumerateFiles(
+                        addonDirectory,
+                        "*.toc",
+                        SearchOption.TopDirectoryOnly)
+                    .OrderBy(
+                        path => path,
+                        StringComparer.OrdinalIgnoreCase)
+                    .FirstOrDefault();
+
+            if (tocPath is null)
+            {
+                return;
+            }
+
+            var toc =
+                await tocDocumentReader.ReadAsync(
+                    tocPath);
+
+            if (currentProject is null ||
+                !string.Equals(
+                    currentProject.ProjectDirectory,
+                    project.ProjectDirectory,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            CurrentProjectTocVersion =
+                DisplayMetadata(
+                    toc.Version);
+        }
+        catch (Exception exception)
+            when (exception is IOException
+                or UnauthorizedAccessException
+                or InvalidDataException)
+        {
+            CurrentProjectTocVersion = "—";
+        }
     }
 
     private void ClearCollectorImport()
@@ -1626,9 +2819,23 @@ public partial class MainWindowViewModel(
             return;
         }
 
-        var file = publishingContentService.Resolve(
-            CurrentProjectDirectory,
-            kind);
+        if (kind == PublishingContentKind.Changelog &&
+            !HasCurrentReleaseVersion)
+        {
+            StatusMessage =
+                "The .toc version is required before editing the release changelog.";
+            return;
+        }
+
+        var file =
+            kind == PublishingContentKind.Changelog
+                ? publishingContentService
+                    .ResolveReleaseChangelog(
+                        CurrentProjectDirectory,
+                        CurrentProjectTocVersion)
+                : publishingContentService.Resolve(
+                    CurrentProjectDirectory,
+                    kind);
 
         if (IsMarkdownDirty &&
             !discardUnsavedChanges)
@@ -1640,9 +2847,15 @@ public partial class MainWindowViewModel(
 
         await RunOperationAsync(async () =>
         {
-            var text = await publishingContentService.ReadAsync(
-                CurrentProjectDirectory,
-                kind);
+            var text =
+                kind == PublishingContentKind.Changelog
+                    ? await publishingContentService
+                        .ReadReleaseChangelogAsync(
+                            CurrentProjectDirectory,
+                            CurrentProjectTocVersion)
+                    : await publishingContentService.ReadAsync(
+                        CurrentProjectDirectory,
+                        kind);
 
             markdownPublishingKind = kind;
             savedMarkdownText = text;
@@ -1670,12 +2883,38 @@ public partial class MainWindowViewModel(
 
         try
         {
+            if (kind != PublishingContentKind.Changelog)
+            {
+                return publishingContentService
+                    .Resolve(
+                        CurrentProjectDirectory,
+                        kind)
+                    .Exists
+                    ? "Created"
+                    : "Not created";
+            }
+
+            if (!HasCurrentReleaseVersion)
+            {
+                return "Version unavailable";
+            }
+
+            var releaseFile =
+                publishingContentService
+                    .ResolveReleaseChangelog(
+                        CurrentProjectDirectory,
+                        CurrentProjectTocVersion);
+
+            if (releaseFile.Exists)
+            {
+                return "Created";
+            }
+
             return publishingContentService
-                .Resolve(
+                .IsReleaseChangelogUsingLegacyFallback(
                     CurrentProjectDirectory,
-                    kind)
-                .Exists
-                ? "Created"
+                    CurrentProjectTocVersion)
+                ? "Legacy file · save to migrate"
                 : "Not created";
         }
         catch
@@ -1686,19 +2925,143 @@ public partial class MainWindowViewModel(
 
     private string GetPublishingActionText(
         PublishingContentKind kind,
-        string label) =>
-        GetPublishingStatus(kind) == "Created"
+        string label)
+    {
+        var status =
+            GetPublishingStatus(kind);
+
+        return status is "Created" ||
+               status.StartsWith(
+                   "Legacy",
+                   StringComparison.Ordinal)
             ? $"Edit {label}"
             : $"Create {label}";
+    }
+
+    private async Task LoadPublishingWorkspaceAsync(
+        bool force = false)
+    {
+        if (CurrentProjectDirectory is null)
+        {
+            ClearPublishingWorkspace();
+            return;
+        }
+
+        if (!force &&
+            PublishingWorkspaceDirty &&
+            string.Equals(
+                publishingWorkspaceProjectDirectory,
+                CurrentProjectDirectory,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        await RunOperationAsync(async () =>
+        {
+            var summaryTask =
+                publishingContentService.ReadAsync(
+                    CurrentProjectDirectory,
+                    PublishingContentKind.Summary);
+            var descriptionTask =
+                publishingContentService.ReadAsync(
+                    CurrentProjectDirectory,
+                    PublishingContentKind.Description);
+
+            var changelogTask =
+                HasCurrentReleaseVersion
+                    ? publishingContentService
+                        .ReadReleaseChangelogAsync(
+                            CurrentProjectDirectory,
+                            CurrentProjectTocVersion)
+                    : Task.FromResult(
+                        string.Empty);
+
+            await Task.WhenAll(
+                summaryTask,
+                descriptionTask,
+                changelogTask);
+
+            suppressPublishingWorkspaceDirty = true;
+
+            try
+            {
+                PublishingSummaryText =
+                    await summaryTask;
+                PublishingDescriptionText =
+                    await descriptionTask;
+                PublishingChangelogText =
+                    await changelogTask;
+            }
+            finally
+            {
+                suppressPublishingWorkspaceDirty = false;
+            }
+
+            savedPublishingSummaryText =
+                PublishingSummaryText;
+            savedPublishingDescriptionText =
+                PublishingDescriptionText;
+            savedPublishingChangelogText =
+                PublishingChangelogText;
+
+            publishingChangelogLoadedFromLegacy =
+                HasCurrentReleaseVersion &&
+                publishingContentService
+                    .IsReleaseChangelogUsingLegacyFallback(
+                        CurrentProjectDirectory,
+                        CurrentProjectTocVersion);
+
+            publishingWorkspaceProjectDirectory =
+                CurrentProjectDirectory;
+            PublishingWorkspaceDirty = false;
+
+            RaisePublishingProperties();
+
+            StatusMessage =
+                publishingChangelogLoadedFromLegacy
+                    ? "Publishing content loaded. Legacy changelog will migrate on save."
+                    : "Publishing content loaded.";
+        });
+    }
+
+    private void ClearPublishingWorkspace()
+    {
+        suppressPublishingWorkspaceDirty = true;
+
+        try
+        {
+            PublishingSummaryText = string.Empty;
+            PublishingDescriptionText = string.Empty;
+            PublishingChangelogText = string.Empty;
+        }
+        finally
+        {
+            suppressPublishingWorkspaceDirty = false;
+        }
+
+        savedPublishingSummaryText = string.Empty;
+        savedPublishingDescriptionText = string.Empty;
+        savedPublishingChangelogText = string.Empty;
+        publishingWorkspaceProjectDirectory = null;
+        publishingChangelogLoadedFromLegacy = false;
+        PublishingWorkspaceDirty = false;
+    }
 
     private void RefreshPublishingMedia()
     {
         PublishingLogoFileName = string.Empty;
         PublishingScreenshots.Clear();
 
+        CurrentProjectLogoImage?.Dispose();
+        CurrentProjectLogoImage = null;
+
+        DisposeProjectScreenshots();
+
         if (CurrentProjectDirectory is null)
         {
             RaisePublishingMediaProperties();
+            RaiseProjectDashboardProperties();
             return;
         }
 
@@ -1714,21 +3077,65 @@ public partial class MainWindowViewModel(
                     : Path.GetFileName(
                         snapshot.LogoFilePath);
 
+            if (snapshot.LogoFilePath is not null)
+            {
+                CurrentProjectLogoImage =
+                    new Bitmap(
+                        snapshot.LogoFilePath);
+            }
+
             foreach (var screenshotPath in
                      snapshot.ScreenshotFilePaths)
             {
                 PublishingScreenshots.Add(
                     Path.GetFileName(
                         screenshotPath));
+
+                ProjectScreenshots.Add(
+                    new ProjectScreenshotItem(
+                        screenshotPath,
+                        new Bitmap(
+                            screenshotPath)));
             }
+
+            SelectedProjectScreenshot =
+                ProjectScreenshots.FirstOrDefault();
         }
         catch
         {
             PublishingLogoFileName = string.Empty;
             PublishingScreenshots.Clear();
+            CurrentProjectLogoImage?.Dispose();
+            CurrentProjectLogoImage = null;
+            DisposeProjectScreenshots();
         }
 
         RaisePublishingMediaProperties();
+        RaiseProjectDashboardProperties();
+    }
+
+    private void DisposeProjectScreenshots()
+    {
+        SelectedProjectScreenshot = null;
+
+        foreach (var screenshot in
+                 ProjectScreenshots)
+        {
+            screenshot.Dispose();
+        }
+
+        ProjectScreenshots.Clear();
+
+        OnPropertyChanged(
+            nameof(HasProjectScreenshots));
+        OnPropertyChanged(
+            nameof(HasNoProjectScreenshots));
+        OnPropertyChanged(
+            nameof(CanShowPreviousProjectScreenshot));
+        OnPropertyChanged(
+            nameof(CanShowNextProjectScreenshot));
+        OnPropertyChanged(
+            nameof(SelectedProjectScreenshotName));
     }
 
     private void RaisePublishingMediaProperties()
@@ -1738,6 +3145,12 @@ public partial class MainWindowViewModel(
         OnPropertyChanged(nameof(PublishingLogoActionText));
         OnPropertyChanged(nameof(HasPublishingScreenshots));
         OnPropertyChanged(nameof(PublishingScreenshotsStatus));
+        OnPropertyChanged(nameof(HasProjectScreenshots));
+        OnPropertyChanged(nameof(HasNoProjectScreenshots));
+        OnPropertyChanged(nameof(CanShowPreviousProjectScreenshot));
+        OnPropertyChanged(nameof(CanShowNextProjectScreenshot));
+        OnPropertyChanged(nameof(SelectedProjectScreenshotName));
+        OnPropertyChanged(nameof(SelectedProjectScreenshotImage));
     }
 
     private void RaisePublishingProperties()
@@ -1745,18 +3158,35 @@ public partial class MainWindowViewModel(
         OnPropertyChanged(nameof(PublishingSummaryFileName));
         OnPropertyChanged(nameof(PublishingDescriptionFileName));
         OnPropertyChanged(nameof(PublishingChangelogFileName));
+        OnPropertyChanged(nameof(HasCurrentReleaseVersion));
+        OnPropertyChanged(nameof(HasNoCurrentReleaseVersion));
+        OnPropertyChanged(nameof(CurrentReleaseTitle));
         OnPropertyChanged(nameof(PublishingSummaryStatus));
         OnPropertyChanged(nameof(PublishingDescriptionStatus));
         OnPropertyChanged(nameof(PublishingChangelogStatus));
         OnPropertyChanged(nameof(PublishingSummaryActionText));
         OnPropertyChanged(nameof(PublishingDescriptionActionText));
         OnPropertyChanged(nameof(PublishingChangelogActionText));
+        OnPropertyChanged(nameof(PublishingWorkspaceStatus));
+        OnPropertyChanged(nameof(CanSavePublishingWorkspace));
+        OnPropertyChanged(nameof(CanRevertPublishingWorkspace));
+        OnPropertyChanged(nameof(PublishingReleaseDirty));
         RaisePublishingMediaProperties();
+        RaiseProjectDashboardProperties();
+    }
+
+    private void RaiseProjectDashboardProperties()
+    {
+        OnPropertyChanged(nameof(ProjectDashboardVersion));
+        OnPropertyChanged(nameof(ProjectDashboardAuthor));
+        OnPropertyChanged(nameof(ProjectDashboardInterfaces));
+        OnPropertyChanged(nameof(ProjectDashboardComponents));
+        OnPropertyChanged(nameof(ProjectDashboardCurseForgeStatus));
     }
 
     private void RefreshCurrentProjectTree()
     {
-        var project = SelectedProject;
+        var project = currentProject;
 
         if (project is null ||
             CurrentProjectDirectory is null ||

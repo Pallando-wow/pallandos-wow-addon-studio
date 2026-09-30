@@ -73,6 +73,19 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void ChooseSavedVariablesPath_Click(
+        object? sender,
+        RoutedEventArgs e)
+    {
+        var path = await PickFolderAsync(
+            "Select WoW SavedVariables folder");
+
+        if (path is not null && ViewModel is not null)
+        {
+            ViewModel.SavedVariablesPath = path;
+        }
+    }
+
     private async void ChooseImportSource_Click(
         object? sender,
         RoutedEventArgs e)
@@ -97,6 +110,56 @@ public partial class MainWindow : Window
         {
             ViewModel.CollectorSourceFile = path;
         }
+    }
+
+    private void PublishingSummarySection_Click(
+        object? sender,
+        RoutedEventArgs e) =>
+        ScrollPublishingSectionIntoView(
+            PublishingSummarySection);
+
+    private void PublishingDescriptionSection_Click(
+        object? sender,
+        RoutedEventArgs e) =>
+        ScrollPublishingSectionIntoView(
+            PublishingDescriptionSection);
+
+    private void PublishingMediaSection_Click(
+        object? sender,
+        RoutedEventArgs e) =>
+        ScrollPublishingSectionIntoView(
+            PublishingMediaSection);
+
+    private void PublishingCurrentReleaseSection_Click(
+        object? sender,
+        RoutedEventArgs e) =>
+        ScrollPublishingSectionIntoView(
+            PublishingCurrentReleaseSection);
+
+    private void ScrollPublishingSectionIntoView(
+        Control section)
+    {
+        var position =
+            section.TranslatePoint(
+                new Point(0, 0),
+                PublishingScrollViewer);
+
+        if (position is null)
+        {
+            section.BringIntoView();
+            return;
+        }
+
+        var targetY =
+            PublishingScrollViewer.Offset.Y +
+            position.Value.Y;
+
+        PublishingScrollViewer.Offset =
+            new Vector(
+                PublishingScrollViewer.Offset.X,
+                Math.Max(
+                    0,
+                    targetY));
     }
 
     private async void ChoosePublishingLogo_Click(
@@ -124,6 +187,101 @@ public partial class MainWindow : Window
             await ViewModel.AddPublishingScreenshotsAsync(
                 paths);
         }
+    }
+
+    private async void RemovePublishingScreenshot_Click(
+        object? sender,
+        RoutedEventArgs e)
+    {
+        if (sender is not Button
+            {
+                DataContext: ProjectScreenshotItem screenshot
+            } ||
+            ViewModel is null)
+        {
+            return;
+        }
+
+        if (!await ConfirmRemoveScreenshotAsync(
+                screenshot.FileName))
+        {
+            return;
+        }
+
+        await ViewModel.RemovePublishingScreenshotAsync(
+            screenshot);
+    }
+
+    private async Task<bool> ConfirmRemoveScreenshotAsync(
+        string fileName)
+    {
+        var cancelButton = new Button
+        {
+            Content = "Cancel",
+            MinWidth = 90
+        };
+
+        var removeButton = new Button
+        {
+            Content = "Remove Screenshot",
+            MinWidth = 140
+        };
+
+        var dialog = new Window
+        {
+            Title = "Remove screenshot",
+            Width = 460,
+            Height = 205,
+            CanResize = false,
+            ShowInTaskbar = false,
+            WindowStartupLocation =
+                WindowStartupLocation.CenterOwner
+        };
+
+        cancelButton.Click +=
+            (_, _) => dialog.Close(false);
+
+        removeButton.Click +=
+            (_, _) => dialog.Close(true);
+
+        dialog.Content = new Border
+        {
+            Padding = new Thickness(20),
+            Child = new StackPanel
+            {
+                Spacing = 14,
+                Children =
+                {
+                    new TextBlock
+                    {
+                        Text = "Remove screenshot?",
+                        FontSize = 20,
+                        FontWeight = FontWeight.SemiBold
+                    },
+                    new TextBlock
+                    {
+                        Text =
+                            $"Remove '{fileName}' from this project?",
+                        TextWrapping = TextWrapping.Wrap
+                    },
+                    new StackPanel
+                    {
+                        Orientation = Orientation.Horizontal,
+                        HorizontalAlignment =
+                            HorizontalAlignment.Right,
+                        Spacing = 8,
+                        Children =
+                        {
+                            cancelButton,
+                            removeButton
+                        }
+                    }
+                }
+            }
+        };
+
+        return await dialog.ShowDialog<bool>(
+            this);
     }
 
     private async void SaveSettings_Click(

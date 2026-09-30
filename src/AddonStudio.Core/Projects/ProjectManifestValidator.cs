@@ -24,6 +24,7 @@ public static class ProjectManifestValidator
         ValidateProject(manifest.Project, issues);
         ValidateRuntime(manifest.Runtime, issues);
         ValidateComponents(manifest.Components, manifest.Runtime, issues);
+        ValidateCurseForge(manifest.CurseForge, issues);
 
         return issues;
     }
@@ -134,6 +135,58 @@ public static class ProjectManifestValidator
                         $"Component '{component.Id}' has an empty target path."));
                 }
             }
+        }
+    }
+
+    private static void ValidateCurseForge(
+        CurseForgeConfiguration? curseForge,
+        ICollection<ProjectValidationIssue> issues)
+    {
+        if (curseForge is null)
+        {
+            return;
+        }
+
+        if (curseForge.AdditionalCategoryIds.Count > 4)
+        {
+            issues.Add(Error(
+                "curseforge.categories.too-many",
+                "CurseForge supports at most four additional categories."));
+        }
+
+        if (curseForge.AdditionalCategoryIds.Any(
+                string.IsNullOrWhiteSpace))
+        {
+            issues.Add(Error(
+                "curseforge.categories.invalid",
+                "CurseForge additional category ids must not be empty."));
+        }
+
+        foreach (var duplicate in curseForge.AdditionalCategoryIds
+                     .Where(value =>
+                         !string.IsNullOrWhiteSpace(value))
+                     .GroupBy(
+                         value => value,
+                         StringComparer.OrdinalIgnoreCase)
+                     .Where(group =>
+                         group.Count() > 1)
+                     .Select(group =>
+                         group.Key))
+        {
+            issues.Add(Error(
+                "curseforge.categories.duplicate",
+                $"CurseForge additional category '{duplicate}' is listed more than once."));
+        }
+
+        if (!string.IsNullOrWhiteSpace(
+                curseForge.MainCategoryId) &&
+            curseForge.AdditionalCategoryIds.Contains(
+                curseForge.MainCategoryId,
+                StringComparer.OrdinalIgnoreCase))
+        {
+            issues.Add(Error(
+                "curseforge.categories.main-duplicated",
+                "The CurseForge main category must not also be listed as an additional category."));
         }
     }
 

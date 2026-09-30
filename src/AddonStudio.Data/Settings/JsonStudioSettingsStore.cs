@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using AddonStudio.Application.Settings;
 
 namespace AddonStudio.Data.Settings;
@@ -8,7 +9,9 @@ public sealed class JsonStudioSettingsStore : IStudioSettingsStore
     private static readonly JsonSerializerOptions SerializerOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        WriteIndented = true
+        WriteIndented = true,
+        DefaultIgnoreCondition =
+            JsonIgnoreCondition.WhenWritingNull
     };
 
     private readonly string settingsPath;
@@ -29,10 +32,24 @@ public sealed class JsonStudioSettingsStore : IStudioSettingsStore
         {
             var json = File.ReadAllText(settingsPath);
 
-            return JsonSerializer.Deserialize<StudioSettings>(
-                       json,
-                       SerializerOptions)
-                   ?? new StudioSettings();
+            var persisted =
+                JsonSerializer.Deserialize<PersistedStudioSettings>(
+                    json,
+                    SerializerOptions)
+                ?? new PersistedStudioSettings();
+
+            return new StudioSettings
+            {
+                ProjectRoot =
+                    persisted.ProjectRoot,
+                WowForeverAddOnsPath =
+                    persisted.WowForeverAddOnsPath,
+                SavedVariablesPath =
+                    persisted.SavedVariablesPath,
+                CurseForgeApiKey =
+                    persisted.CurseForgeApiKey ??
+                    string.Empty
+            };
         }
         catch (JsonException)
         {
@@ -55,8 +72,19 @@ public sealed class JsonStudioSettingsStore : IStudioSettingsStore
             Directory.CreateDirectory(directory);
         }
 
+        var persisted =
+            new PersistedStudioSettings
+            {
+                ProjectRoot =
+                    settings.ProjectRoot,
+                WowForeverAddOnsPath =
+                    settings.WowForeverAddOnsPath,
+                SavedVariablesPath =
+                    settings.SavedVariablesPath
+            };
+
         var json = JsonSerializer.Serialize(
-            settings,
+            persisted,
             SerializerOptions);
 
         File.WriteAllText(settingsPath, json);
@@ -79,5 +107,20 @@ public sealed class JsonStudioSettingsStore : IStudioSettingsStore
             localApplicationData,
             "PallandosWowAddonStudio",
             "settings.json");
+    }
+
+    private sealed class PersistedStudioSettings
+    {
+        public string ProjectRoot { get; init; } =
+            string.Empty;
+
+        public string WowForeverAddOnsPath { get; init; } =
+            string.Empty;
+
+        public string SavedVariablesPath { get; init; } =
+            string.Empty;
+
+        // Legacy migration only. New saves deliberately omit this value.
+        public string? CurseForgeApiKey { get; init; }
     }
 }

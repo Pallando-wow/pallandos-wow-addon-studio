@@ -9,6 +9,8 @@ using AddonStudio.Application.Publishing;
 using AddonStudio.Data.Projects;
 using AddonStudio.Data.Settings;
 using AddonStudio.Media;
+using AddonStudio.Platforms.CurseForge;
+using AddonStudio.Platforms.Security;
 using AddonStudio.Wow.Collector;
 using AddonStudio.Wow.Projects;
 using AddonStudio.Wow.Toc;
@@ -27,11 +29,23 @@ public partial class App : Avalonia.Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             var manifestReader = new ProjectManifestReader();
+            var manifestWriter = new ProjectManifestWriter();
             var addonSourceInspector = new AddonSourceInspector();
 
             var addonProjectService = new AddonProjectService(
                 addonSourceInspector,
-                new ProjectManifestWriter());
+                manifestWriter);
+
+            var projectCurseForgeSettingsService =
+                new ProjectCurseForgeSettingsService(
+                    manifestWriter);
+
+            var curseForgeDataSourceClient =
+                new CurseForgeDataSourceClient(
+                    new HttpClient());
+
+            var localSecretStore =
+                new WindowsProtectedSecretStore();
 
             var projectCatalogService =
                 new ProjectCatalogService(
@@ -63,6 +77,9 @@ public partial class App : Avalonia.Application
             {
                 DataContext = new MainWindowViewModel(
                     addonProjectService,
+                    projectCurseForgeSettingsService,
+                    curseForgeDataSourceClient,
+                    localSecretStore,
                     settingsStore,
                     projectCatalogService,
                     projectExplorerService,
