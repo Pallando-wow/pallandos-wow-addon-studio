@@ -106,6 +106,181 @@ public sealed class CurseForgeDataSourceClientTests
     }
 
     [Fact]
+    public async Task GetProjectAsync_LoadsProjectById()
+    {
+        var handler = new StubHandler(request =>
+        {
+            Assert.Equal(
+                "/v1/mods/12345",
+                request.RequestUri?.PathAndQuery);
+
+            return Json(
+                """
+                {
+                  "data": {
+                    "id": 12345,
+                    "gameId": 1,
+                    "name": "ForeverBag",
+                    "slug": "foreverbag",
+                    "summary": "Bag addon",
+                    "status": 4,
+                    "primaryCategoryId": 101,
+                    "categories": [
+                      {
+                        "id": 101,
+                        "gameId": 1,
+                        "name": "Bags & Inventory",
+                        "slug": "bags-inventory",
+                        "isClass": false,
+                        "classId": 100,
+                        "parentCategoryId": null,
+                        "displayIndex": 1
+                      }
+                    ]
+                  }
+                }
+                """);
+        });
+
+        var client =
+            new CurseForgeDataSourceClient(
+                new HttpClient(handler)
+                {
+                    BaseAddress =
+                        new Uri(
+                            "https://api.curseforge.com/")
+                });
+
+        var project =
+            await client.GetProjectAsync(
+                "secret-key",
+                12345);
+
+        Assert.Equal(
+            12345,
+            project.Id);
+        Assert.Equal(
+            "ForeverBag",
+            project.Name);
+        Assert.Equal(
+            "foreverbag",
+            project.Slug);
+        Assert.Equal(
+            "Approved",
+            project.StatusName);
+        Assert.Equal(
+            101,
+            project.PrimaryCategoryId);
+        Assert.Contains(
+            101,
+            project.CategoryIds);
+    }
+
+    [Fact]
+    public async Task FindProjectBySlugAsync_UsesExactSlugMatch()
+    {
+        var handler = new StubHandler(request =>
+        {
+            Assert.Equal(
+                "/v1/mods/search?gameId=1&slug=foreverbag&pageSize=50",
+                request.RequestUri?.PathAndQuery);
+
+            return Json(
+                """
+                {
+                  "data": [
+                    {
+                      "id": 12345,
+                      "gameId": 1,
+                      "name": "ForeverBag",
+                      "slug": "foreverbag",
+                      "summary": "Bag addon",
+                      "status": 4,
+                      "primaryCategoryId": 101,
+                      "categories": []
+                    }
+                  ],
+                  "pagination": {
+                    "index": 0,
+                    "pageSize": 50,
+                    "resultCount": 1,
+                    "totalCount": 1
+                  }
+                }
+                """);
+        });
+
+        var client =
+            new CurseForgeDataSourceClient(
+                new HttpClient(handler)
+                {
+                    BaseAddress =
+                        new Uri(
+                            "https://api.curseforge.com/")
+                });
+
+        var project =
+            await client.FindProjectBySlugAsync(
+                "secret-key",
+                1,
+                "foreverbag");
+
+        Assert.NotNull(project);
+        Assert.Equal(
+            12345,
+            project.Id);
+        Assert.Equal(
+            "foreverbag",
+            project.Slug);
+    }
+
+    [Fact]
+    public async Task FindProjectBySlugAsync_ReturnsNullWhenNoExactSlugExists()
+    {
+        var handler = new StubHandler(_ =>
+            Json(
+                """
+                {
+                  "data": [
+                    {
+                      "id": 999,
+                      "gameId": 1,
+                      "name": "Forever Bag Tools",
+                      "slug": "forever-bag-tools",
+                      "summary": "",
+                      "status": 4,
+                      "primaryCategoryId": 101,
+                      "categories": []
+                    }
+                  ],
+                  "pagination": {
+                    "index": 0,
+                    "pageSize": 50,
+                    "resultCount": 1,
+                    "totalCount": 1
+                  }
+                }
+                """));
+
+        var client =
+            new CurseForgeDataSourceClient(
+                new HttpClient(handler)
+                {
+                    BaseAddress =
+                        new Uri(
+                            "https://api.curseforge.com/")
+                });
+
+        var project =
+            await client.FindProjectBySlugAsync(
+                "secret-key",
+                1,
+                "foreverbag");
+
+        Assert.Null(project);
+    }
+
+    [Fact]
     public async Task LoadWorldOfWarcraftAsync_ReportsApiError()
     {
         var handler =
