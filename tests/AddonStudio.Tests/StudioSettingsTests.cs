@@ -14,6 +14,8 @@ public sealed class StudioSettingsTests
             Path.Combine(temp.Path, "Projects")).FullName;
         var wowPath = Directory.CreateDirectory(
             Path.Combine(temp.Path, "WoW", "Interface", "AddOns")).FullName;
+        var savedVariablesPath = Directory.CreateDirectory(
+            Path.Combine(temp.Path, "WoW", "WTF", "Account", "Test", "SavedVariables")).FullName;
         var settingsPath = Path.Combine(temp.Path, "settings.json");
 
         var store = new JsonStudioSettingsStore(settingsPath);
@@ -23,6 +25,7 @@ public sealed class StudioSettingsTests
             {
                 ProjectRoot = projectRoot,
                 WowForeverAddOnsPath = wowPath,
+                SavedVariablesPath = savedVariablesPath,
                 CurseForgeApiKey = "test-api-key"
             });
 
@@ -30,6 +33,7 @@ public sealed class StudioSettingsTests
 
         Assert.Equal(projectRoot, loaded.ProjectRoot);
         Assert.Equal(wowPath, loaded.WowForeverAddOnsPath);
+        Assert.Equal(savedVariablesPath, loaded.SavedVariablesPath);
         Assert.Equal("test-api-key", loaded.CurseForgeApiKey);
         Assert.True(StudioSettingsValidator.IsComplete(loaded));
     }
@@ -48,6 +52,45 @@ public sealed class StudioSettingsTests
 
         Assert.Single(issues);
         Assert.Contains("WoW Forever AddOns path", issues[0]);
+    }
+
+    [Fact]
+    public void Validator_AllowsEmptySavedVariablesPath()
+    {
+        using var temp = new TempDirectory();
+
+        var settings = new StudioSettings
+        {
+            ProjectRoot = temp.Path,
+            WowForeverAddOnsPath = temp.Path
+        };
+
+        var issues = StudioSettingsValidator.Validate(settings);
+
+        Assert.Empty(issues);
+    }
+
+    [Fact]
+    public void Validator_RejectsMissingSavedVariablesPathWhenConfigured()
+    {
+        using var temp = new TempDirectory();
+
+        var settings = new StudioSettings
+        {
+            ProjectRoot = temp.Path,
+            WowForeverAddOnsPath = temp.Path,
+            SavedVariablesPath =
+                Path.Combine(
+                    temp.Path,
+                    "MissingSavedVariables")
+        };
+
+        var issues = StudioSettingsValidator.Validate(settings);
+
+        Assert.Single(issues);
+        Assert.Contains(
+            "WoW SavedVariables path",
+            issues[0]);
     }
 
     [Fact]
