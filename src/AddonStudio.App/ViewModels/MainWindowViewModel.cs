@@ -245,6 +245,30 @@ public partial class MainWindowViewModel(
     public bool CanOpenSelectedProject =>
         SelectedProject is not null;
 
+    public bool HasSelectedProject =>
+        SelectedProject is not null;
+
+    public bool HasNoSelectedProject =>
+        SelectedProject is null;
+
+    public string SelectedProjectName =>
+        SelectedProject?.Name ?? string.Empty;
+
+    public string SelectedProjectTypeName =>
+        SelectedProject?.TypeName ?? string.Empty;
+
+    public string SelectedProjectPrimaryAddon =>
+        string.IsNullOrWhiteSpace(
+            SelectedProject?.PrimaryAddon)
+            ? "—"
+            : SelectedProject!.PrimaryAddon;
+
+    public int SelectedProjectRuntimeAddonCount =>
+        SelectedProject?.RuntimeAddonCount ?? 0;
+
+    public string SelectedProjectDirectory =>
+        SelectedProject?.ProjectDirectory ?? string.Empty;
+
     public bool HasSelectedMarkdownFile =>
         SelectedProjectTreeItem is
         {
@@ -341,6 +365,7 @@ public partial class MainWindowViewModel(
             return;
         }
 
+        SelectedProject = null;
         Sidebar = StudioSidebar.Start;
         WorkspaceTabIndex = 0;
     }
@@ -574,12 +599,14 @@ public partial class MainWindowViewModel(
                     $"{Path.GetFileName(issue.ProjectDirectory)}: {issue.Message}");
             }
 
-            SelectedProject = Projects.FirstOrDefault(
-                project => string.Equals(
-                    project.ProjectDirectory,
-                    selectedDirectory,
-                    StringComparison.OrdinalIgnoreCase))
-                ?? Projects.FirstOrDefault();
+            SelectedProject =
+                string.IsNullOrWhiteSpace(selectedDirectory)
+                    ? null
+                    : Projects.FirstOrDefault(
+                        project => string.Equals(
+                            project.ProjectDirectory,
+                            selectedDirectory,
+                            StringComparison.OrdinalIgnoreCase));
 
             RaiseProjectCatalogProperties();
 
@@ -991,8 +1018,17 @@ public partial class MainWindowViewModel(
         OnPropertyChanged(nameof(IsSetupComplete));
 
     partial void OnSelectedProjectChanged(
-        ProjectCatalogEntry? value) =>
+        ProjectCatalogEntry? value)
+    {
         OnPropertyChanged(nameof(CanOpenSelectedProject));
+        OnPropertyChanged(nameof(HasSelectedProject));
+        OnPropertyChanged(nameof(HasNoSelectedProject));
+        OnPropertyChanged(nameof(SelectedProjectName));
+        OnPropertyChanged(nameof(SelectedProjectTypeName));
+        OnPropertyChanged(nameof(SelectedProjectPrimaryAddon));
+        OnPropertyChanged(nameof(SelectedProjectRuntimeAddonCount));
+        OnPropertyChanged(nameof(SelectedProjectDirectory));
+    }
 
     partial void OnSelectedProjectTreeItemChanged(
         ProjectTreeItem? value) =>
