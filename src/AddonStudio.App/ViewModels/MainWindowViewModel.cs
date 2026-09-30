@@ -207,6 +207,7 @@ public partial class MainWindowViewModel(
         "Not configured";
 
     private int curseForgeGameId;
+    private string savedCurseForgeApiKey = string.Empty;
     private CurseForgeProject? curseForgeRemoteProject;
 
     [ObservableProperty]
@@ -405,10 +406,13 @@ public partial class MainWindowViewModel(
             settingsStore.Save(settings);
         }
 
+        savedCurseForgeApiKey =
+            curseForgeApiKey;
+
         curseForgeDataSourceStatus =
             string.IsNullOrWhiteSpace(curseForgeApiKey)
                 ? "Not configured"
-                : "Configured · not connected";
+                : "Saved · not connected";
         setupRequired = !StudioSettingsValidator.IsComplete(settings);
         sidebar = setupRequired
             ? StudioSidebar.Settings
@@ -705,6 +709,23 @@ public partial class MainWindowViewModel(
     public bool IsCurseForgeDataSourceConfigured =>
         !string.IsNullOrWhiteSpace(
             CurseForgeApiKey);
+
+    public bool CurseForgeApiKeyDirty =>
+        !string.Equals(
+            CurseForgeApiKey.Trim(),
+            savedCurseForgeApiKey,
+            StringComparison.Ordinal);
+
+    public bool CanSaveCurseForgeApiKey =>
+        CurseForgeApiKeyDirty;
+
+    public string CurseForgeApiKeyStorageStatus =>
+        string.IsNullOrWhiteSpace(
+            savedCurseForgeApiKey)
+            ? "API key not saved"
+            : CurseForgeApiKeyDirty
+                ? "Unsaved API key changes"
+                : "API key saved securely for this Windows user";
 
     public bool CanUseCurseForgeProjectSettings =>
         CurseForgeDataSourceReady;
@@ -1201,6 +1222,54 @@ public partial class MainWindowViewModel(
     }
 
     [RelayCommand]
+    private void SaveCurseForgeApiKey()
+    {
+        var apiKey =
+            CurseForgeApiKey.Trim();
+
+        if (string.IsNullOrWhiteSpace(
+                apiKey))
+        {
+            localSecretStore.Delete(
+                CurseForgeApiKeySecretName);
+
+            savedCurseForgeApiKey =
+                string.Empty;
+            CurseForgeApiKey =
+                string.Empty;
+            CurseForgeDataSourceReady =
+                false;
+            CurseForgeDataSourceStatus =
+                "Not configured";
+
+            StatusMessage =
+                "CurseForge API key removed.";
+        }
+        else
+        {
+            localSecretStore.Save(
+                CurseForgeApiKeySecretName,
+                apiKey);
+
+            savedCurseForgeApiKey =
+                apiKey;
+            CurseForgeApiKey =
+                apiKey;
+
+            if (!CurseForgeDataSourceReady)
+            {
+                CurseForgeDataSourceStatus =
+                    "Saved · not connected";
+            }
+
+            StatusMessage =
+                "CurseForge API key saved securely.";
+        }
+
+        RaiseCurseForgeApiKeyStorageProperties();
+    }
+
+    [RelayCommand]
     private async Task TestCurseForgeDataSourceAsync()
     {
         if (!IsCurseForgeDataSourceConfigured)
@@ -1533,6 +1602,16 @@ public partial class MainWindowViewModel(
             nameof(CurseForgePublishingReadiness));
     }
 
+    private void RaiseCurseForgeApiKeyStorageProperties()
+    {
+        OnPropertyChanged(
+            nameof(CurseForgeApiKeyDirty));
+        OnPropertyChanged(
+            nameof(CanSaveCurseForgeApiKey));
+        OnPropertyChanged(
+            nameof(CurseForgeApiKeyStorageStatus));
+    }
+
     private void ClearCurseForgeCategoryChoices()
     {
         foreach (var category in
@@ -1761,7 +1840,11 @@ public partial class MainWindowViewModel(
                 ? string.Empty
                 : Path.GetFullPath(
                     settings.SavedVariablesPath);
-        CurseForgeApiKey = settings.CurseForgeApiKey;
+        savedCurseForgeApiKey =
+            settings.CurseForgeApiKey;
+        CurseForgeApiKey =
+            settings.CurseForgeApiKey;
+        RaiseCurseForgeApiKeyStorageProperties();
         SetupRequired = false;
         Sidebar = StudioSidebar.Start;
         WorkspaceTabIndex = 0;
@@ -1780,7 +1863,9 @@ public partial class MainWindowViewModel(
         WowForeverAddOnsPath = string.Empty;
         SavedVariablesPath = string.Empty;
         CollectorSourceFile = string.Empty;
+        savedCurseForgeApiKey = string.Empty;
         CurseForgeApiKey = string.Empty;
+        RaiseCurseForgeApiKeyStorageProperties();
         CurseForgeDataSourceReady = false;
         CurseForgeDataSourceStatus = "Not configured";
         ClearCurseForgeCategoryChoices();
@@ -2883,7 +2968,9 @@ public partial class MainWindowViewModel(
         CurseForgeDataSourceStatus =
             string.IsNullOrWhiteSpace(value)
                 ? "Not configured"
-                : "Configured · not connected";
+                : CurseForgeApiKeyDirty
+                    ? "Unsaved · not connected"
+                    : "Saved · not connected";
 
         OnPropertyChanged(
             nameof(IsCurseForgeDataSourceConfigured));
@@ -2893,6 +2980,7 @@ public partial class MainWindowViewModel(
             nameof(HasCurseForgeCategories));
         OnPropertyChanged(
             nameof(CanLoadCurseForgeProject));
+        RaiseCurseForgeApiKeyStorageProperties();
     }
 
     partial void OnCurseForgeDataSourceReadyChanged(
