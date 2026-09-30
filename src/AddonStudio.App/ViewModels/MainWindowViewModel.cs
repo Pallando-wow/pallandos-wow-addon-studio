@@ -70,8 +70,18 @@ public partial class CurseForgeCategoryChoice(
 
     public string Name { get; } = name;
 
+    public event EventHandler? SelectionChanged;
+
     [ObservableProperty]
     private bool isSelected;
+
+    [ObservableProperty]
+    private bool canSelectAdditional = true;
+
+    partial void OnIsSelectedChanged(bool value) =>
+        SelectionChanged?.Invoke(
+            this,
+            EventArgs.Empty);
 }
 
 public partial class MainWindowViewModel(
@@ -186,6 +196,14 @@ public partial class MainWindowViewModel(
         selectedCurseForgeMainCategory;
 
     [ObservableProperty]
+    private string curseForgeMainCategorySearchText =
+        string.Empty;
+
+    [ObservableProperty]
+    private string curseForgeAdditionalCategorySearchText =
+        string.Empty;
+
+    [ObservableProperty]
     private bool setupRequired;
 
     [ObservableProperty]
@@ -237,6 +255,12 @@ public partial class MainWindowViewModel(
 
     public ObservableCollection<CurseForgeCategoryChoice>
         CurseForgeCategories { get; } = [];
+
+    public ObservableCollection<CurseForgeCategoryChoice>
+        FilteredCurseForgeMainCategories { get; } = [];
+
+    public ObservableCollection<CurseForgeCategoryChoice>
+        FilteredCurseForgeAdditionalCategories { get; } = [];
 
     [ObservableProperty]
     private string curseForgeProjectId = string.Empty;
@@ -574,6 +598,9 @@ public partial class MainWindowViewModel(
 
     public bool HasCurseForgeCategories =>
         CurseForgeCategories.Count > 0;
+
+    public string CurseForgeAdditionalCategorySelectionStatus =>
+        $"{CurseForgeCategories.Count(category => category.IsSelected)} / 4 selected";
 
     public IReadOnlyList<string> CurseForgeDistributionOptions { get; } =
     [
@@ -943,11 +970,19 @@ public partial class MainWindowViewModel(
                 foreach (var category in
                          projectCategories)
                 {
-                    CurseForgeCategories.Add(
+                    var choice =
                         new CurseForgeCategoryChoice(
                             category.Id,
-                            category.Name));
+                            category.Name);
+
+                    choice.SelectionChanged +=
+                        CurseForgeCategory_SelectionChanged;
+
+                    CurseForgeCategories.Add(
+                        choice);
                 }
+
+                RefreshCurseForgeCategoryFilters();
 
                 CurseForgeDataSourceReady = true;
                 CurseForgeDataSourceStatus =
@@ -970,6 +1005,92 @@ public partial class MainWindowViewModel(
             }
         });
     }
+
+    private void CurseForgeCategory_SelectionChanged(
+        object? sender,
+        EventArgs e)
+    {
+        if (sender is not CurseForgeCategoryChoice category)
+        {
+            return;
+        }
+
+        var selectedCount =
+            CurseForgeCategories.Count(
+                choice =>
+                    choice.IsSelected);
+
+        if (category.IsSelected &&
+            selectedCount > 4)
+        {
+            category.IsSelected = false;
+            StatusMessage =
+                "CurseForge supports at most four additional categories.";
+            return;
+        }
+
+        UpdateCurseForgeAdditionalCategoryAvailability();
+        OnPropertyChanged(
+            nameof(CurseForgeAdditionalCategorySelectionStatus));
+    }
+
+    private void RefreshCurseForgeCategoryFilters()
+    {
+        FilteredCurseForgeMainCategories.Clear();
+
+        foreach (var category in
+                 CurseForgeCategories.Where(category =>
+                     MatchesCategorySearch(
+                         category,
+                         CurseForgeMainCategorySearchText)))
+        {
+            FilteredCurseForgeMainCategories.Add(
+                category);
+        }
+
+        FilteredCurseForgeAdditionalCategories.Clear();
+
+        foreach (var category in
+                 CurseForgeCategories.Where(category =>
+                     category !=
+                         SelectedCurseForgeMainCategory &&
+                     MatchesCategorySearch(
+                         category,
+                         CurseForgeAdditionalCategorySearchText)))
+        {
+            FilteredCurseForgeAdditionalCategories.Add(
+                category);
+        }
+
+        UpdateCurseForgeAdditionalCategoryAvailability();
+    }
+
+    private void UpdateCurseForgeAdditionalCategoryAvailability()
+    {
+        var selectedCount =
+            CurseForgeCategories.Count(
+                category =>
+                    category.IsSelected);
+
+        foreach (var category in
+                 CurseForgeCategories)
+        {
+            category.CanSelectAdditional =
+                category.IsSelected ||
+                selectedCount < 4;
+        }
+
+        OnPropertyChanged(
+            nameof(CurseForgeAdditionalCategorySelectionStatus));
+    }
+
+    private static bool MatchesCategorySearch(
+        CurseForgeCategoryChoice category,
+        string searchText) =>
+        string.IsNullOrWhiteSpace(searchText) ||
+        category.Name.Contains(
+            searchText.Trim(),
+            StringComparison.OrdinalIgnoreCase);
 
     [RelayCommand]
     private void ShowSettings()
@@ -1957,6 +2078,25 @@ public partial class MainWindowViewModel(
             nameof(ProjectDashboardCurseForgeStatus));
     }
 
+    partial void OnSelectedCurseForgeMainCategoryChanged(
+        CurseForgeCategoryChoice? value)
+    {
+        if (value?.IsSelected == true)
+        {
+            value.IsSelected = false;
+        }
+
+        RefreshCurseForgeCategoryFilters();
+    }
+
+    partial void OnCurseForgeMainCategorySearchTextChanged(
+        string value) =>
+        RefreshCurseForgeCategoryFilters();
+
+    partial void OnCurseForgeAdditionalCategorySearchTextChanged(
+        string value) =>
+        RefreshCurseForgeCategoryFilters();
+
     partial void OnCurseForgeProjectIdChanged(
         string value) =>
         OnPropertyChanged(nameof(CurseForgeBindingStatus));
@@ -2070,6 +2210,8 @@ public partial class MainWindowViewModel(
                 additionalCategoryIds.Contains(
                     category.Id.ToString());
         }
+
+        RefreshCurseForgeCategoryFilters();
     }
 
     private static IReadOnlyList<string> ParseAdditionalCategoryIds(
