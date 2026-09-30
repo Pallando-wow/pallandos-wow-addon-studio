@@ -828,7 +828,7 @@
                                                 </StackPanel>
                                                 <Button Grid.Row="0"
                                                         Grid.Column="1"
-                                                        Command="{Binding OpenPublishingSummaryCommand}"
+                                                        Click="OpenPublishingSummary_Click"
                                                         Content="{Binding PublishingSummaryActionText}" />
 
                                                 <StackPanel Grid.Row="1"
@@ -841,7 +841,7 @@
                                                 </StackPanel>
                                                 <Button Grid.Row="1"
                                                         Grid.Column="1"
-                                                        Command="{Binding OpenPublishingDescriptionCommand}"
+                                                        Click="OpenPublishingDescription_Click"
                                                         Content="{Binding PublishingDescriptionActionText}" />
 
                                                 <StackPanel Grid.Row="2"
@@ -854,7 +854,7 @@
                                                 </StackPanel>
                                                 <Button Grid.Row="2"
                                                         Grid.Column="1"
-                                                        Command="{Binding OpenPublishingChangelogCommand}"
+                                                        Click="OpenPublishingChangelog_Click"
                                                         Content="{Binding PublishingChangelogActionText}" />
                                             </Grid>
                                         </StackPanel>
@@ -1024,7 +1024,7 @@
                                                 </StackPanel>
                                                 <Button Grid.Column="1"
                                                         VerticalAlignment="Center"
-                                                        Command="{Binding OpenPublishingSummaryCommand}"
+                                                        Click="OpenPublishingSummary_Click"
                                                         Content="{Binding PublishingSummaryActionText}" />
                                             </Grid>
                                         </Border>
@@ -1053,7 +1053,7 @@
                                                 </StackPanel>
                                                 <Button Grid.Column="1"
                                                         VerticalAlignment="Center"
-                                                        Command="{Binding OpenPublishingDescriptionCommand}"
+                                                        Click="OpenPublishingDescription_Click"
                                                         Content="{Binding PublishingDescriptionActionText}" />
                                             </Grid>
                                         </Border>
@@ -1082,7 +1082,7 @@
                                                 </StackPanel>
                                                 <Button Grid.Column="1"
                                                         VerticalAlignment="Center"
-                                                        Command="{Binding OpenPublishingChangelogCommand}"
+                                                        Click="OpenPublishingChangelog_Click"
                                                         Content="{Binding PublishingChangelogActionText}" />
                                             </Grid>
                                         </Border>
