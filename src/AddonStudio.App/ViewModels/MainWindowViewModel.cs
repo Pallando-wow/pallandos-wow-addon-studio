@@ -16,6 +16,7 @@ namespace AddonStudio.App.ViewModels;
 public enum StudioSidebar
 {
     Start,
+    ProjectOverview,
     Explorer,
     Components,
     Git,
@@ -456,6 +457,52 @@ public partial class MainWindowViewModel(
             ? $"{PublishingScreenshots.Count} screenshot(s)"
             : "No screenshots";
 
+    public bool IsProjectSidebar =>
+        Sidebar is
+            StudioSidebar.ProjectOverview or
+            StudioSidebar.Explorer or
+            StudioSidebar.Git or
+            StudioSidebar.Publishing or
+            StudioSidebar.CurseForge;
+
+    public bool IsProjectOverviewSidebar =>
+        Sidebar == StudioSidebar.ProjectOverview;
+
+    public bool HasSelectedProjectTreeItem =>
+        SelectedProjectTreeItem is not null;
+
+    public bool HasNoSelectedProjectTreeItem =>
+        SelectedProjectTreeItem is null;
+
+    public string SelectedProjectTreeItemName =>
+        SelectedProjectTreeItem?.Name ?? string.Empty;
+
+    public string SelectedProjectTreeItemPath =>
+        SelectedProjectTreeItem?.FullPath ?? string.Empty;
+
+    public bool IsSelectedReleaseFolder =>
+        IsSelectedProjectDirectory(
+            ProjectLayout.ReleaseDirectoryName);
+
+    public bool IsSelectedLogoFolder =>
+        IsSelectedProjectDirectory(
+            ProjectLayout.MediaDirectoryName,
+            ProjectLayout.LogoDirectoryName);
+
+    public bool IsSelectedScreenshotsFolder =>
+        IsSelectedProjectDirectory(
+            ProjectLayout.MediaDirectoryName,
+            ProjectLayout.ScreenshotsDirectoryName);
+
+    public bool HasSelectedSpecialProjectFolder =>
+        IsSelectedReleaseFolder ||
+        IsSelectedLogoFolder ||
+        IsSelectedScreenshotsFolder;
+
+    public bool HasSelectedGenericProjectTreeItem =>
+        HasSelectedProjectTreeItem &&
+        !HasSelectedSpecialProjectFolder;
+
     public bool IsStartSidebar => Sidebar == StudioSidebar.Start;
     public bool IsExplorerSidebar => Sidebar == StudioSidebar.Explorer;
     public bool IsComponentsSidebar => Sidebar == StudioSidebar.Components;
@@ -467,7 +514,8 @@ public partial class MainWindowViewModel(
     public string WorkspaceTitle => Sidebar switch
     {
         StudioSidebar.Start => "Start",
-        StudioSidebar.Explorer => "Explorer",
+        StudioSidebar.ProjectOverview => CurrentProjectName ?? "Project",
+        StudioSidebar.Explorer => "Files",
         StudioSidebar.Components => "Components",
         StudioSidebar.Git => "Git",
         StudioSidebar.Publishing => "Publishing",
@@ -499,9 +547,23 @@ public partial class MainWindowViewModel(
     }
 
     [RelayCommand]
+    private void ShowProjectOverview()
+    {
+        if (SetupRequired ||
+            !HasCurrentProject)
+        {
+            return;
+        }
+
+        Sidebar = StudioSidebar.ProjectOverview;
+        WorkspaceTabIndex = 0;
+    }
+
+    [RelayCommand]
     private void ShowExplorer()
     {
-        if (SetupRequired)
+        if (SetupRequired ||
+            !HasCurrentProject)
         {
             return;
         }
@@ -525,7 +587,8 @@ public partial class MainWindowViewModel(
     [RelayCommand]
     private void ShowGit()
     {
-        if (SetupRequired)
+        if (SetupRequired ||
+            !HasCurrentProject)
         {
             return;
         }
@@ -537,7 +600,8 @@ public partial class MainWindowViewModel(
     [RelayCommand]
     private void ShowPublishing()
     {
-        if (SetupRequired)
+        if (SetupRequired ||
+            !HasCurrentProject)
         {
             return;
         }
@@ -551,7 +615,8 @@ public partial class MainWindowViewModel(
     [RelayCommand]
     private void ShowCurseForge()
     {
-        if (SetupRequired)
+        if (SetupRequired ||
+            !HasCurrentProject)
         {
             return;
         }
@@ -1004,7 +1069,8 @@ public partial class MainWindowViewModel(
         }
 
         SelectedProject = project;
-        Sidebar = StudioSidebar.Explorer;
+        SelectedProjectTreeItem = null;
+        Sidebar = StudioSidebar.ProjectOverview;
         WorkspaceTabIndex = 0;
         StatusMessage = $"Project '{project.Name}' opened.";
 
@@ -1188,6 +1254,8 @@ public partial class MainWindowViewModel(
     partial void OnSidebarChanged(StudioSidebar value)
     {
         OnPropertyChanged(nameof(IsStartSidebar));
+        OnPropertyChanged(nameof(IsProjectSidebar));
+        OnPropertyChanged(nameof(IsProjectOverviewSidebar));
         OnPropertyChanged(nameof(IsExplorerSidebar));
         OnPropertyChanged(nameof(IsComponentsSidebar));
         OnPropertyChanged(nameof(IsGitSidebar));
@@ -1399,8 +1467,19 @@ public partial class MainWindowViewModel(
     }
 
     partial void OnSelectedProjectTreeItemChanged(
-        ProjectTreeItem? value) =>
+        ProjectTreeItem? value)
+    {
         OnPropertyChanged(nameof(HasSelectedMarkdownFile));
+        OnPropertyChanged(nameof(HasSelectedProjectTreeItem));
+        OnPropertyChanged(nameof(HasNoSelectedProjectTreeItem));
+        OnPropertyChanged(nameof(SelectedProjectTreeItemName));
+        OnPropertyChanged(nameof(SelectedProjectTreeItemPath));
+        OnPropertyChanged(nameof(IsSelectedReleaseFolder));
+        OnPropertyChanged(nameof(IsSelectedLogoFolder));
+        OnPropertyChanged(nameof(IsSelectedScreenshotsFolder));
+        OnPropertyChanged(nameof(HasSelectedSpecialProjectFolder));
+        OnPropertyChanged(nameof(HasSelectedGenericProjectTreeItem));
+    }
 
     partial void OnMarkdownDocumentPathChanged(
         string? value)
@@ -1458,6 +1537,36 @@ public partial class MainWindowViewModel(
     {
         OnPropertyChanged(nameof(HasCurrentProject));
         OnPropertyChanged(nameof(HasNoCurrentProject));
+        OnPropertyChanged(nameof(WorkspaceTitle));
+    }
+
+    private bool IsSelectedProjectDirectory(
+        params string[] relativeSegments)
+    {
+        if (CurrentProjectDirectory is null ||
+            SelectedProjectTreeItem is not
+            {
+                IsDirectory: true
+            } item)
+        {
+            return false;
+        }
+
+        var expectedPath =
+            relativeSegments.Aggregate(
+                CurrentProjectDirectory,
+                Path.Combine);
+
+        return string.Equals(
+            Path.GetFullPath(item.FullPath)
+                .TrimEnd(
+                    Path.DirectorySeparatorChar,
+                    Path.AltDirectorySeparatorChar),
+            Path.GetFullPath(expectedPath)
+                .TrimEnd(
+                    Path.DirectorySeparatorChar,
+                    Path.AltDirectorySeparatorChar),
+            StringComparison.OrdinalIgnoreCase);
     }
 
     private void ClearCollectorImport()
