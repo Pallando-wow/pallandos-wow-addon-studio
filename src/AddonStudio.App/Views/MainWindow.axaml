@@ -91,7 +91,7 @@
             <Border Grid.Column="0"
                     BorderThickness="0,0,1,0"
                     BorderBrush="#353535">
-                <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,*,Auto"
+                <Grid RowDefinitions="Auto,Auto,Auto,*,Auto"
                       Margin="0,8">
                     <Button Grid.Row="0"
                             Width="44"
@@ -117,9 +117,9 @@
                             HorizontalContentAlignment="Center"
                             VerticalContentAlignment="Center"
                             Margin="0,2"
-                            IsEnabled="{Binding IsSetupComplete}"
-                            Command="{Binding ShowExplorerCommand}"
-                            ToolTip.Tip="Explorer">
+                            IsEnabled="{Binding HasCurrentProject}"
+                            Command="{Binding ShowProjectOverviewCommand}"
+                            ToolTip.Tip="Current project">
                         <PathIcon Width="20"
                                   Height="20"
                                   Data="M3,6 L9,6 L11,8 L21,8 L21,19 L3,19 Z" />
@@ -141,62 +141,7 @@
                                   Data="M4,4 L10,4 L10,10 L4,10 Z M14,4 L20,4 L20,10 L14,10 Z M4,14 L10,14 L10,20 L4,20 Z M14,14 L20,14 L20,20 L14,20 Z" />
                     </Button>
 
-                    <Border Grid.Row="3"
-                            Width="28"
-                            Height="1"
-                            Margin="0,7"
-                            HorizontalAlignment="Center"
-                            Background="#353535" />
-
                     <Button Grid.Row="4"
-                            Width="44"
-                            Height="44"
-                            Padding="0"
-                            HorizontalAlignment="Center"
-                            HorizontalContentAlignment="Center"
-                            VerticalContentAlignment="Center"
-                            Margin="0,2"
-                            IsEnabled="{Binding IsSetupComplete}"
-                            Command="{Binding ShowGitCommand}"
-                            ToolTip.Tip="Git">
-                        <PathIcon Width="20"
-                                  Height="20"
-                                  Data="M6,3 A3,3 0 1 1 6,9 A3,3 0 1 1 6,3 Z M6,15 A3,3 0 1 1 6,21 A3,3 0 1 1 6,15 Z M18,9 A3,3 0 1 1 18,15 A3,3 0 1 1 18,9 Z M5,8 L7,8 L7,16 L5,16 Z M7,11 L16,11 L16,13 L7,13 Z" />
-                    </Button>
-
-                    <Button Grid.Row="5"
-                            Width="44"
-                            Height="44"
-                            Padding="0"
-                            HorizontalAlignment="Center"
-                            HorizontalContentAlignment="Center"
-                            VerticalContentAlignment="Center"
-                            Margin="0,2"
-                            IsEnabled="{Binding IsSetupComplete}"
-                            Command="{Binding ShowPublishingCommand}"
-                            ToolTip.Tip="Publishing">
-                        <PathIcon Width="20"
-                                  Height="20"
-                                  Data="M11,14 L13,14 L13,8 L17,12 L19,10 L12,3 L5,10 L7,12 L11,8 Z M4,18 L20,18 L20,20 L4,20 Z" />
-                    </Button>
-
-                    <Button Grid.Row="6"
-                            Width="44"
-                            Height="44"
-                            Padding="0"
-                            HorizontalAlignment="Center"
-                            HorizontalContentAlignment="Center"
-                            VerticalContentAlignment="Center"
-                            Margin="0,2"
-                            IsEnabled="{Binding IsSetupComplete}"
-                            Command="{Binding ShowCurseForgeCommand}"
-                            ToolTip.Tip="CurseForge">
-                        <PathIcon Width="22"
-                                  Height="22"
-                                  Data="M18.326 9.2145S23.2261 8.4418 24 6.1882h-7.5066V4.4H0l2.0318 2.3576V9.173s5.1267-.2665 7.1098 1.2372c2.7146 2.516-3.053 5.917-3.053 5.917L5.0995 19.6c1.5465-1.4726 4.494-3.3775 9.8983-3.2857-2.0565.65-4.1245 1.6651-5.7344 3.2857h10.9248l-1.0288-3.2726s-7.918-4.6688-.8336-7.1127z" />
-                    </Button>
-
-                    <Button Grid.Row="8"
                             Width="44"
                             Height="44"
                             Padding="0"
@@ -305,30 +250,58 @@
                         </StackPanel>
                     </StackPanel>
 
-                    <StackPanel IsVisible="{Binding IsExplorerSidebar}"
+                    <StackPanel IsVisible="{Binding IsProjectSidebar}"
                                 Spacing="8">
                         <TextBlock FontSize="12"
                                    FontWeight="SemiBold"
                                    Opacity="0.75"
-                                   Text="EXPLORER" />
+                                   Text="PROJECT" />
 
-                        <StackPanel IsVisible="{Binding HasCurrentProject}"
-                                    Spacing="7">
-                            <TextBlock FontSize="16"
-                                       FontWeight="SemiBold"
-                                       Text="{Binding CurrentProjectName}" />
+                        <TextBlock FontSize="16"
+                                   FontWeight="SemiBold"
+                                   Text="{Binding CurrentProjectName}" />
 
-                            <StackPanel Orientation="Horizontal"
-                                        Spacing="8">
-                                <TextBlock FontSize="11"
-                                           Opacity="0.6"
-                                           Text="{Binding CurrentProjectTypeName}" />
-                                <TextBlock FontSize="11"
-                                           Opacity="0.6"
-                                           Text="{Binding CurrentPrimaryAddon}" />
-                            </StackPanel>
+                        <StackPanel Orientation="Horizontal"
+                                    Spacing="8">
+                            <TextBlock FontSize="11"
+                                       Opacity="0.6"
+                                       Text="{Binding CurrentProjectTypeName}" />
+                            <TextBlock FontSize="11"
+                                       Opacity="0.6"
+                                       Text="{Binding CurrentPrimaryAddon}" />
+                        </StackPanel>
 
+                        <Separator Margin="0,4" />
+
+                        <Button HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Left"
+                                Command="{Binding ShowProjectOverviewCommand}"
+                                Content="Overview" />
+                        <Button HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Left"
+                                Command="{Binding ShowExplorerCommand}"
+                                Content="Files" />
+                        <Button HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Left"
+                                Command="{Binding ShowPublishingCommand}"
+                                Content="Publishing" />
+                        <Button HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Left"
+                                Command="{Binding ShowCurseForgeCommand}"
+                                Content="CurseForge" />
+                        <Button HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Left"
+                                Command="{Binding ShowGitCommand}"
+                                Content="Git" />
+
+                        <StackPanel IsVisible="{Binding IsExplorerSidebar}"
+                                    Spacing="7"
+                                    Margin="0,6,0,0">
                             <Separator />
+                            <TextBlock FontSize="12"
+                                       FontWeight="SemiBold"
+                                       Opacity="0.75"
+                                       Text="FILES" />
 
                             <TreeView ItemsSource="{Binding CurrentProjectTree}"
                                       SelectedItem="{Binding SelectedProjectTreeItem}"
@@ -341,11 +314,6 @@
                                 </TreeView.ItemTemplate>
                             </TreeView>
                         </StackPanel>
-
-                        <TextBlock IsVisible="{Binding HasNoCurrentProject}"
-                                   TextWrapping="Wrap"
-                                   Opacity="0.65"
-                                   Text="No project is open. Select a project on Start and open it." />
                     </StackPanel>
 
                     <StackPanel IsVisible="{Binding IsComponentsSidebar}"
@@ -359,30 +327,7 @@
                                    Text="Libraries, UI components and asset packs will be managed here." />
                     </StackPanel>
 
-                    <StackPanel IsVisible="{Binding IsGitSidebar}"
-                                Spacing="10">
-                        <TextBlock FontSize="12"
-                                   FontWeight="SemiBold"
-                                   Opacity="0.75"
-                                   Text="GIT" />
-                        <TextBlock TextWrapping="Wrap"
-                                   Opacity="0.65"
-                                   Text="Changes, branches, commits and tags will appear here for Git projects." />
-                    </StackPanel>
-
-                    <StackPanel IsVisible="{Binding IsPublishingSidebar}"
-                                Spacing="10">
-                        <TextBlock FontSize="12"
-                                   FontWeight="SemiBold"
-                                   Opacity="0.75"
-                                   Text="PUBLISHING" />
-
-                        <TextBlock IsVisible="{Binding HasNoCurrentProject}"
-                                   TextWrapping="Wrap"
-                                   Opacity="0.65"
-                                   Text="Open a project first to edit publishing content." />
-
-                        <StackPanel IsVisible="{Binding HasCurrentProject}"
+                    <StackPanel IsVisible="{Binding HasCurrentProject}"
                                     Spacing="8">
                             <TextBlock FontSize="16"
                                        FontWeight="SemiBold"
@@ -392,17 +337,6 @@
                                        TextWrapping="Wrap"
                                        Text="Summary is English-only. Description and changelog can contain multiple language sections in the same Markdown document." />
                         </StackPanel>
-                    </StackPanel>
-
-                    <StackPanel IsVisible="{Binding IsCurseForgeSidebar}"
-                                Spacing="10">
-                        <TextBlock FontSize="12"
-                                   FontWeight="SemiBold"
-                                   Opacity="0.75"
-                                   Text="CURSEFORGE" />
-                        <TextBlock TextWrapping="Wrap"
-                                   Opacity="0.65"
-                                   Text="Project binding and publication status will appear here." />
                     </StackPanel>
 
                     <StackPanel IsVisible="{Binding IsSettingsSidebar}"
@@ -783,35 +717,242 @@
                                 </ScrollViewer>
                             </Grid>
 
+                            <ScrollViewer IsVisible="{Binding IsProjectOverviewSidebar}">
+                                <StackPanel Margin="32"
+                                            MaxWidth="920"
+                                            HorizontalAlignment="Left"
+                                            Spacing="20">
+                                    <StackPanel Spacing="6">
+                                        <TextBlock FontSize="28"
+                                                   FontWeight="SemiBold"
+                                                   Text="{Binding CurrentProjectName}" />
+                                        <TextBlock FontSize="14"
+                                                   Opacity="0.7"
+                                                   Text="Project overview" />
+                                    </StackPanel>
+
+                                    <Border Padding="20"
+                                            CornerRadius="8"
+                                            BorderThickness="1"
+                                            BorderBrush="#3A3A3A">
+                                        <Grid RowDefinitions="Auto,Auto,Auto,Auto"
+                                              ColumnDefinitions="180,*"
+                                              ColumnSpacing="18"
+                                              RowSpacing="10">
+                                            <TextBlock Grid.Row="0"
+                                                       FontWeight="SemiBold"
+                                                       Text="Type" />
+                                            <TextBlock Grid.Row="0"
+                                                       Grid.Column="1"
+                                                       Text="{Binding CurrentProjectTypeName}" />
+
+                                            <TextBlock Grid.Row="1"
+                                                       FontWeight="SemiBold"
+                                                       Text="Primary addon" />
+                                            <TextBlock Grid.Row="1"
+                                                       Grid.Column="1"
+                                                       Text="{Binding CurrentPrimaryAddon}" />
+
+                                            <TextBlock Grid.Row="2"
+                                                       FontWeight="SemiBold"
+                                                       Text="Project directory" />
+                                            <TextBlock Grid.Row="2"
+                                                       Grid.Column="1"
+                                                       TextWrapping="Wrap"
+                                                       Opacity="0.7"
+                                                       Text="{Binding CurrentProjectDirectory}" />
+
+                                            <TextBlock Grid.Row="3"
+                                                       FontWeight="SemiBold"
+                                                       Text="Runtime addons" />
+                                            <ItemsControl Grid.Row="3"
+                                                          Grid.Column="1"
+                                                          ItemsSource="{Binding CurrentRuntimeAddons}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <TextBlock Text="{Binding}" />
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </Grid>
+                                    </Border>
+
+                                    <TextBlock Opacity="0.65"
+                                               TextWrapping="Wrap"
+                                               Text="Use the project navigation on the left for files, publishing, CurseForge and Git." />
+                                </StackPanel>
+                            </ScrollViewer>
+
                             <ScrollViewer IsVisible="{Binding IsExplorerSidebar}">
                                 <StackPanel Margin="32"
-                                            MaxWidth="760"
+                                            MaxWidth="920"
                                             HorizontalAlignment="Left"
-                                            Spacing="16">
-                                    <TextBlock FontSize="26"
-                                               FontWeight="SemiBold"
-                                               Text="{Binding CurrentProjectName}" />
-                                    <TextBlock IsVisible="{Binding HasNoCurrentProject}"
-                                               Opacity="0.65"
-                                               Text="Open a project from Start to populate the Explorer." />
-                                    <Border IsVisible="{Binding HasCurrentProject}"
+                                            Spacing="20">
+                                    <StackPanel Spacing="6">
+                                        <TextBlock FontSize="28"
+                                                   FontWeight="SemiBold"
+                                                   Text="Files" />
+                                        <TextBlock FontSize="14"
+                                                   Opacity="0.7"
+                                                   TextWrapping="Wrap"
+                                                   Text="Browse the project tree. Project-specific actions appear here for selected folders." />
+                                    </StackPanel>
+
+                                    <Border IsVisible="{Binding HasNoSelectedProjectTreeItem}"
                                             Padding="20"
                                             CornerRadius="8"
                                             BorderThickness="1"
                                             BorderBrush="#3A3A3A">
-                                        <StackPanel Spacing="8">
+                                        <StackPanel Spacing="6">
                                             <TextBlock FontSize="17"
                                                        FontWeight="SemiBold"
-                                                       Text="Project overview" />
-                                            <TextBlock Text="{Binding CurrentProjectDirectory}"
+                                                       Text="Select a file or folder" />
+                                            <TextBlock Opacity="0.65"
                                                        TextWrapping="Wrap"
-                                                       Opacity="0.65" />
-                                            <TextBlock Text="{Binding CurrentProjectTypeName}" />
-                                            <TextBlock Text="{Binding CurrentPrimaryAddon}" />
-                                            <TextBlock Margin="0,8,0,0"
+                                                       Text="Select Release, Media/Logo or Media/Screenshots to add publishing content directly from the project." />
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border IsVisible="{Binding IsSelectedReleaseFolder}"
+                                            Padding="20"
+                                            CornerRadius="8"
+                                            BorderThickness="1"
+                                            BorderBrush="#3A3A3A">
+                                        <StackPanel Spacing="14">
+                                            <TextBlock FontSize="20"
+                                                       FontWeight="SemiBold"
+                                                       Text="Release content" />
+                                            <TextBlock Opacity="0.65"
+                                                       TextWrapping="Wrap"
+                                                       Text="Create or edit the files used for the project page and the current release." />
+
+                                            <Grid RowDefinitions="Auto,Auto,Auto"
+                                                  ColumnDefinitions="*,Auto"
+                                                  ColumnSpacing="16"
+                                                  RowSpacing="10">
+                                                <StackPanel Grid.Row="0"
+                                                            Spacing="2">
+                                                    <TextBlock FontWeight="SemiBold"
+                                                               Text="Summary" />
+                                                    <TextBlock FontSize="12"
+                                                               Opacity="0.65"
+                                                               Text="{Binding PublishingSummaryStatus}" />
+                                                </StackPanel>
+                                                <Button Grid.Row="0"
+                                                        Grid.Column="1"
+                                                        Command="{Binding OpenPublishingSummaryCommand}"
+                                                        Content="{Binding PublishingSummaryActionText}" />
+
+                                                <StackPanel Grid.Row="1"
+                                                            Spacing="2">
+                                                    <TextBlock FontWeight="SemiBold"
+                                                               Text="Description" />
+                                                    <TextBlock FontSize="12"
+                                                               Opacity="0.65"
+                                                               Text="{Binding PublishingDescriptionStatus}" />
+                                                </StackPanel>
+                                                <Button Grid.Row="1"
+                                                        Grid.Column="1"
+                                                        Command="{Binding OpenPublishingDescriptionCommand}"
+                                                        Content="{Binding PublishingDescriptionActionText}" />
+
+                                                <StackPanel Grid.Row="2"
+                                                            Spacing="2">
+                                                    <TextBlock FontWeight="SemiBold"
+                                                               Text="Changelog" />
+                                                    <TextBlock FontSize="12"
+                                                               Opacity="0.65"
+                                                               Text="{Binding PublishingChangelogStatus}" />
+                                                </StackPanel>
+                                                <Button Grid.Row="2"
+                                                        Grid.Column="1"
+                                                        Command="{Binding OpenPublishingChangelogCommand}"
+                                                        Content="{Binding PublishingChangelogActionText}" />
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border IsVisible="{Binding IsSelectedLogoFolder}"
+                                            Padding="20"
+                                            CornerRadius="8"
+                                            BorderThickness="1"
+                                            BorderBrush="#3A3A3A">
+                                        <Grid ColumnDefinitions="*,Auto"
+                                              ColumnSpacing="16">
+                                            <StackPanel Spacing="6">
+                                                <TextBlock FontSize="20"
+                                                           FontWeight="SemiBold"
+                                                           Text="Project logo" />
+                                                <TextBlock Opacity="0.65"
+                                                           TextWrapping="Wrap"
+                                                           Text="PNG logo used for the project page." />
+                                                <TextBlock FontFamily="Consolas"
+                                                           FontSize="12"
+                                                           Opacity="0.65"
+                                                           Text="{Binding PublishingLogoStatus}" />
+                                            </StackPanel>
+                                            <Button Grid.Column="1"
+                                                    VerticalAlignment="Center"
+                                                    Click="ChoosePublishingLogo_Click"
+                                                    Content="{Binding PublishingLogoActionText}" />
+                                        </Grid>
+                                    </Border>
+
+                                    <Border IsVisible="{Binding IsSelectedScreenshotsFolder}"
+                                            Padding="20"
+                                            CornerRadius="8"
+                                            BorderThickness="1"
+                                            BorderBrush="#3A3A3A">
+                                        <Grid ColumnDefinitions="*,Auto"
+                                              ColumnSpacing="16">
+                                            <StackPanel Spacing="7">
+                                                <TextBlock FontSize="20"
+                                                           FontWeight="SemiBold"
+                                                           Text="Screenshots" />
+                                                <TextBlock Opacity="0.65"
+                                                           TextWrapping="Wrap"
+                                                           Text="Add one or more PNG or JPEG screenshots to the project." />
+                                                <TextBlock FontSize="12"
+                                                           Opacity="0.65"
+                                                           Text="{Binding PublishingScreenshotsStatus}" />
+                                                <ItemsControl IsVisible="{Binding HasPublishingScreenshots}"
+                                                              ItemsSource="{Binding PublishingScreenshots}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <TextBlock Margin="0,1"
+                                                                       FontSize="12"
+                                                                       Opacity="0.8"
+                                                                       Text="{Binding}" />
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </StackPanel>
+                                            <Button Grid.Column="1"
+                                                    VerticalAlignment="Center"
+                                                    Click="AddPublishingScreenshots_Click"
+                                                    Content="Add Screenshots" />
+                                        </Grid>
+                                    </Border>
+
+                                    <Border IsVisible="{Binding HasSelectedGenericProjectTreeItem}"
+                                            Padding="20"
+                                            CornerRadius="8"
+                                            BorderThickness="1"
+                                            BorderBrush="#3A3A3A">
+                                        <StackPanel Spacing="6">
+                                            <TextBlock FontSize="20"
+                                                       FontWeight="SemiBold"
+                                                       Text="{Binding SelectedProjectTreeItemName}" />
+                                            <TextBlock FontFamily="Consolas"
+                                                       FontSize="12"
                                                        Opacity="0.65"
                                                        TextWrapping="Wrap"
-                                                       Text="The file tree is now loaded in the Explorer. File opening in editor tabs is the next step." />
+                                                       Text="{Binding SelectedProjectTreeItemPath}" />
+                                            <TextBlock IsVisible="{Binding HasSelectedMarkdownFile}"
+                                                       Margin="0,6,0,0"
+                                                       Opacity="0.7"
+                                                       TextWrapping="Wrap"
+                                                       Text="Double-click the Markdown file in the tree to open it in the editor." />
                                         </StackPanel>
                                     </Border>
                                 </StackPanel>
