@@ -71,6 +71,88 @@ public sealed class CurseForgeDataSourceClient
             categories);
     }
 
+    public async Task<CurseForgeProject> GetProjectAsync(
+        string apiKey,
+        int projectId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(apiKey);
+
+        if (projectId <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(projectId));
+        }
+
+        var response =
+            await GetAsync<SingleApiResponse<ModDto>>(
+                $"v1/mods/{projectId}",
+                apiKey.Trim(),
+                cancellationToken);
+
+        return MapProject(
+            response.Data);
+    }
+
+    public async Task<CurseForgeProject?> FindProjectBySlugAsync(
+        string apiKey,
+        int gameId,
+        string slug,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(apiKey);
+        ArgumentException.ThrowIfNullOrWhiteSpace(slug);
+
+        if (gameId <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(gameId));
+        }
+
+        var encodedSlug =
+            Uri.EscapeDataString(
+                slug.Trim());
+
+        var response =
+            await GetAsync<ModSearchResponse>(
+                $"v1/mods/search?gameId={gameId}&slug={encodedSlug}&pageSize=50",
+                apiKey.Trim(),
+                cancellationToken);
+
+        var match =
+            response.Data.FirstOrDefault(mod =>
+                string.Equals(
+                    mod.Slug,
+                    slug.Trim(),
+                    StringComparison.OrdinalIgnoreCase));
+
+        return match is null
+            ? null
+            : MapProject(match);
+    }
+
+    private static CurseForgeProject MapProject(
+        ModDto mod) =>
+        new(
+            mod.Id,
+            mod.GameId,
+            mod.Name ?? string.Empty,
+            mod.Slug ?? string.Empty,
+            mod.Summary ?? string.Empty,
+            mod.Status,
+            mod.PrimaryCategoryId,
+            mod.Categories
+                .Select(category =>
+                    new CurseForgeProjectCategory(
+                        category.Id,
+                        category.Name ?? string.Empty,
+                        category.Slug ?? string.Empty,
+                        category.ClassId,
+                        category.ParentCategoryId))
+                .DistinctBy(category =>
+                    category.Id)
+                .ToArray());
+
     private async Task<CurseForgeGame>
         FindWorldOfWarcraftAsync(
             string apiKey,
@@ -176,6 +258,37 @@ public sealed class CurseForgeDataSourceClient
     private sealed class ApiResponse<T>
     {
         public List<T> Data { get; init; } = [];
+    }
+
+    private sealed class SingleApiResponse<T>
+    {
+        public required T Data { get; init; }
+    }
+
+    private sealed class ModSearchResponse
+    {
+        public List<ModDto> Data { get; init; } = [];
+
+        public PaginationDto? Pagination { get; init; }
+    }
+
+    private sealed class ModDto
+    {
+        public int Id { get; init; }
+
+        public int GameId { get; init; }
+
+        public string? Name { get; init; }
+
+        public string? Slug { get; init; }
+
+        public string? Summary { get; init; }
+
+        public int Status { get; init; }
+
+        public int PrimaryCategoryId { get; init; }
+
+        public List<CategoryDto> Categories { get; init; } = [];
     }
 
     private sealed class GameDto

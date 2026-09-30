@@ -18,3 +18,49 @@ public sealed record CurseForgeCategory(
 public sealed record CurseForgeDataSnapshot(
     CurseForgeGame Game,
     IReadOnlyList<CurseForgeCategory> Categories);
+
+
+public sealed record CurseForgeProjectCategory(
+    int Id,
+    string Name,
+    string Slug,
+    int? ClassId,
+    int? ParentCategoryId);
+
+public sealed record CurseForgeProject(
+    int Id,
+    int GameId,
+    string Name,
+    string Slug,
+    string Summary,
+    int Status,
+    int PrimaryCategoryId,
+    IReadOnlyList<CurseForgeProjectCategory> Categories)
+{
+    public IReadOnlyList<int> CategoryIds =>
+        Categories
+            .Select(category => category.Id)
+            .ToArray();
+
+    public CurseForgeProjectCategory? PrimaryCategory =>
+        Categories.FirstOrDefault(
+            category =>
+                category.Id ==
+                PrimaryCategoryId);
+
+    public string StatusName =>
+        Status switch
+        {
+            1 => "New",
+            2 => "Changes Required",
+            3 => "Under Soft Review",
+            4 => "Approved",
+            5 => "Rejected",
+            6 => "Changes Made",
+            7 => "Inactive",
+            8 => "Abandoned",
+            9 => "Deleted",
+            10 => "Under Review",
+            _ => $"Status {Status}"
+        };
+}
