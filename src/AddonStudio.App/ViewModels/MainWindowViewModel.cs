@@ -1492,6 +1492,9 @@ public partial class MainWindowViewModel(
         UpdateCurseForgeAdditionalCategoryAvailability();
         OnPropertyChanged(
             nameof(CurseForgeAdditionalCategorySelectionStatus));
+        OnPropertyChanged(
+            nameof(CurseForgeCategoryComparisonStatus));
+        RaiseCurseForgeReadinessProperties();
     }
 
     private void RefreshCurseForgeCategoryFilters()
@@ -2787,7 +2790,9 @@ public partial class MainWindowViewModel(
         string value)
     {
         CurseForgeDataSourceReady = false;
+        curseForgeGameId = 0;
         ClearCurseForgeCategoryChoices();
+        ClearCurseForgeRemoteProject();
         CurseForgeDataSourceStatus =
             string.IsNullOrWhiteSpace(value)
                 ? "Not configured"
@@ -2799,6 +2804,8 @@ public partial class MainWindowViewModel(
             nameof(CanUseCurseForgeProjectSettings));
         OnPropertyChanged(
             nameof(HasCurseForgeCategories));
+        OnPropertyChanged(
+            nameof(CanLoadCurseForgeProject));
     }
 
     partial void OnCurseForgeDataSourceReadyChanged(
@@ -2807,7 +2814,10 @@ public partial class MainWindowViewModel(
         OnPropertyChanged(
             nameof(CanUseCurseForgeProjectSettings));
         OnPropertyChanged(
+            nameof(CanLoadCurseForgeProject));
+        OnPropertyChanged(
             nameof(ProjectDashboardCurseForgeStatus));
+        RaiseCurseForgeReadinessProperties();
     }
 
     partial void OnSelectedCurseForgeMainCategoryChanged(
@@ -2828,6 +2838,9 @@ public partial class MainWindowViewModel(
         }
 
         RefreshCurseForgeCategoryFilters();
+        OnPropertyChanged(
+            nameof(CurseForgeCategoryComparisonStatus));
+        RaiseCurseForgeReadinessProperties();
     }
 
     partial void OnCurseForgeMainCategorySearchTextChanged(
@@ -2839,12 +2852,52 @@ public partial class MainWindowViewModel(
         RefreshCurseForgeCategoryFilters();
 
     partial void OnCurseForgeProjectIdChanged(
-        string value) =>
-        OnPropertyChanged(nameof(CurseForgeBindingStatus));
+        string value)
+    {
+        if (curseForgeRemoteProject is not null &&
+            !string.Equals(
+                curseForgeRemoteProject.Id.ToString(),
+                value.Trim(),
+                StringComparison.OrdinalIgnoreCase))
+        {
+            ClearCurseForgeRemoteProject();
+        }
+
+        OnPropertyChanged(
+            nameof(CanLoadCurseForgeProject));
+        OnPropertyChanged(
+            nameof(CurseForgeBindingStatus));
+        RaiseCurseForgeReadinessProperties();
+        RaiseProjectDashboardProperties();
+    }
 
     partial void OnCurseForgeSlugChanged(
+        string value)
+    {
+        if (curseForgeRemoteProject is not null &&
+            !string.Equals(
+                curseForgeRemoteProject.Slug,
+                value.Trim(),
+                StringComparison.OrdinalIgnoreCase))
+        {
+            ClearCurseForgeRemoteProject();
+        }
+
+        OnPropertyChanged(
+            nameof(CanLoadCurseForgeProject));
+        OnPropertyChanged(
+            nameof(CurseForgeBindingStatus));
+        RaiseCurseForgeReadinessProperties();
+        RaiseProjectDashboardProperties();
+    }
+
+    partial void OnCurseForgeLicenseChanged(
         string value) =>
-        OnPropertyChanged(nameof(CurseForgeBindingStatus));
+        RaiseCurseForgeReadinessProperties();
+
+    partial void OnCurseForgeDistributionSelectionChanged(
+        string value) =>
+        RaiseCurseForgeReadinessProperties();
 
     partial void OnCurrentProjectTocVersionChanged(
         string value)
@@ -2863,6 +2916,7 @@ public partial class MainWindowViewModel(
             nameof(PublishingWorkspaceStatus));
         OnPropertyChanged(
             nameof(CanSavePublishingWorkspace));
+        RaiseCurseForgeReadinessProperties();
     }
 
     partial void OnCurrentProjectDirectoryChanged(
@@ -2921,6 +2975,34 @@ public partial class MainWindowViewModel(
     private void LoadCurseForgeSettings(
         CurseForgeConfiguration? configuration)
     {
+        if (curseForgeRemoteProject is not null)
+        {
+            var configuredProjectId =
+                configuration?.ProjectId?.Trim();
+            var configuredSlug =
+                configuration?.Slug?.Trim();
+
+            if ((!string.IsNullOrWhiteSpace(
+                     configuredProjectId) &&
+                 !string.Equals(
+                     configuredProjectId,
+                     curseForgeRemoteProject.Id.ToString(),
+                     StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrWhiteSpace(
+                     configuredSlug) &&
+                 !string.Equals(
+                     configuredSlug,
+                     curseForgeRemoteProject.Slug,
+                     StringComparison.OrdinalIgnoreCase)) ||
+                (string.IsNullOrWhiteSpace(
+                     configuredProjectId) &&
+                 string.IsNullOrWhiteSpace(
+                     configuredSlug)))
+            {
+                ClearCurseForgeRemoteProject();
+            }
+        }
+
         CurseForgeProjectId =
             configuration?.ProjectId ?? string.Empty;
         CurseForgeSlug =
@@ -2945,6 +3027,9 @@ public partial class MainWindowViewModel(
             };
 
         ApplyCurseForgeCategorySelections();
+        RaiseCurseForgeProjectProperties();
+        RaiseCurseForgeReadinessProperties();
+        RaiseProjectDashboardProperties();
     }
 
     private void ApplyCurseForgeCategorySelections()
@@ -3482,6 +3567,7 @@ public partial class MainWindowViewModel(
         OnPropertyChanged(nameof(CanShowNextProjectScreenshot));
         OnPropertyChanged(nameof(SelectedProjectScreenshotName));
         OnPropertyChanged(nameof(SelectedProjectScreenshotImage));
+        RaiseCurseForgeReadinessProperties();
     }
 
     private void RaisePublishingProperties()
@@ -3503,6 +3589,7 @@ public partial class MainWindowViewModel(
         OnPropertyChanged(nameof(CanRevertPublishingWorkspace));
         OnPropertyChanged(nameof(PublishingReleaseDirty));
         RaisePublishingMediaProperties();
+        RaiseCurseForgeReadinessProperties();
         RaiseProjectDashboardProperties();
     }
 
