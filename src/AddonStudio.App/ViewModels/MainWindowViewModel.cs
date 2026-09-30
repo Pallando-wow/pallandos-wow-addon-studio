@@ -9,6 +9,7 @@ using AddonStudio.Core.Publishing;
 using AddonStudio.Media;
 using AddonStudio.Platforms.CurseForge;
 using AddonStudio.Wow.Toc;
+using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -224,6 +225,9 @@ public partial class MainWindowViewModel(
 
     [ObservableProperty]
     private string publishingLogoFileName = string.Empty;
+
+    [ObservableProperty]
+    private Bitmap? currentProjectLogoImage;
 
     public ObservableCollection<string> PublishingScreenshots { get; } = [];
 
@@ -553,6 +557,36 @@ public partial class MainWindowViewModel(
 
     public string CurseForgeScreenshotsStatus =>
         PublishingScreenshotsStatus;
+
+    public string ProjectDashboardVersion =>
+        HasSelectedProjectTocMetadata
+            ? SelectedProjectTocVersion
+            : "—";
+
+    public string ProjectDashboardAuthor =>
+        HasSelectedProjectTocMetadata
+            ? SelectedProjectTocAuthor
+            : "—";
+
+    public string ProjectDashboardInterfaces =>
+        HasSelectedProjectTocMetadata
+            ? SelectedProjectTocInterfaces
+            : "—";
+
+    public string ProjectDashboardComponents =>
+        currentProject is null ||
+        currentProject.Manifest.Components.Count == 0
+            ? "None"
+            : string.Join(
+                ", ",
+                currentProject.Manifest.Components
+                    .Select(component =>
+                        component.Id));
+
+    public string ProjectDashboardCurseForgeStatus =>
+        !CurseForgeDataSourceReady
+            ? "Data source not connected"
+            : SelectedProjectCurseForge;
 
     public bool IsProjectSidebar =>
         Sidebar is
@@ -1041,6 +1075,8 @@ public partial class MainWindowViewModel(
         CurrentProjectTree.Clear();
         CurrentRuntimeAddons.Clear();
         ClearMarkdownDocument();
+        CurrentProjectLogoImage?.Dispose();
+        CurrentProjectLogoImage = null;
 
         SelectedProject = null;
         currentProject = null;
@@ -1382,6 +1418,9 @@ public partial class MainWindowViewModel(
 
         SelectedProject = project;
         SelectedProjectTreeItem = null;
+        RefreshPublishingMedia();
+        RaisePublishingProperties();
+        RaiseProjectDashboardProperties();
         Sidebar = StudioSidebar.ProjectOverview;
         WorkspaceTabIndex = 0;
         StatusMessage = $"Project '{project.Name}' opened.";
@@ -1597,6 +1636,7 @@ public partial class MainWindowViewModel(
         OnPropertyChanged(nameof(SelectedProjectDirectory));
 
         ResetSelectedProjectPreviewMetadata();
+        RaiseProjectDashboardProperties();
 
         if (value is not null)
         {
@@ -1734,6 +1774,7 @@ public partial class MainWindowViewModel(
                     : string.Join(" · ", savedVariables);
 
             HasSelectedProjectTocMetadata = true;
+            RaiseProjectDashboardProperties();
         }
         catch (Exception exception)
             when (exception is IOException
@@ -1849,9 +1890,13 @@ public partial class MainWindowViewModel(
     }
 
     partial void OnCurseForgeDataSourceReadyChanged(
-        bool value) =>
+        bool value)
+    {
         OnPropertyChanged(
             nameof(CanUseCurseForgeProjectSettings));
+        OnPropertyChanged(
+            nameof(ProjectDashboardCurseForgeStatus));
+    }
 
     partial void OnCurseForgeProjectIdChanged(
         string value) =>
@@ -2214,9 +2259,13 @@ public partial class MainWindowViewModel(
         PublishingLogoFileName = string.Empty;
         PublishingScreenshots.Clear();
 
+        CurrentProjectLogoImage?.Dispose();
+        CurrentProjectLogoImage = null;
+
         if (CurrentProjectDirectory is null)
         {
             RaisePublishingMediaProperties();
+            RaiseProjectDashboardProperties();
             return;
         }
 
@@ -2232,6 +2281,13 @@ public partial class MainWindowViewModel(
                     : Path.GetFileName(
                         snapshot.LogoFilePath);
 
+            if (snapshot.LogoFilePath is not null)
+            {
+                CurrentProjectLogoImage =
+                    new Bitmap(
+                        snapshot.LogoFilePath);
+            }
+
             foreach (var screenshotPath in
                      snapshot.ScreenshotFilePaths)
             {
@@ -2244,9 +2300,12 @@ public partial class MainWindowViewModel(
         {
             PublishingLogoFileName = string.Empty;
             PublishingScreenshots.Clear();
+            CurrentProjectLogoImage?.Dispose();
+            CurrentProjectLogoImage = null;
         }
 
         RaisePublishingMediaProperties();
+        RaiseProjectDashboardProperties();
     }
 
     private void RaisePublishingMediaProperties()
@@ -2270,6 +2329,16 @@ public partial class MainWindowViewModel(
         OnPropertyChanged(nameof(PublishingDescriptionActionText));
         OnPropertyChanged(nameof(PublishingChangelogActionText));
         RaisePublishingMediaProperties();
+        RaiseProjectDashboardProperties();
+    }
+
+    private void RaiseProjectDashboardProperties()
+    {
+        OnPropertyChanged(nameof(ProjectDashboardVersion));
+        OnPropertyChanged(nameof(ProjectDashboardAuthor));
+        OnPropertyChanged(nameof(ProjectDashboardInterfaces));
+        OnPropertyChanged(nameof(ProjectDashboardComponents));
+        OnPropertyChanged(nameof(ProjectDashboardCurseForgeStatus));
     }
 
     private void RefreshCurrentProjectTree()
