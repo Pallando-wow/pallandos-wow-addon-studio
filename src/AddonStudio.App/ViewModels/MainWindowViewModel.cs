@@ -767,27 +767,28 @@ public partial class MainWindowViewModel(
                 return "Local classification incomplete";
             }
 
-            var remoteIds =
+            var remoteAdditionalIds =
                 curseForgeRemoteProject.CategoryIds
                     .Where(id =>
+                        id != curseForgeRemoteProject
+                            .PrimaryCategoryId &&
                         CurseForgeCategories.Any(
                             category =>
                                 category.Id == id))
                     .ToHashSet();
 
-            var localIds =
+            var localAdditionalIds =
                 CurseForgeCategories
                     .Where(category =>
                         category.IsSelected)
                     .Select(category =>
                         category.Id)
-                    .Append(
-                        SelectedCurseForgeMainCategory.Id)
                     .ToHashSet();
 
             return curseForgeRemoteProject.PrimaryCategoryId ==
                        SelectedCurseForgeMainCategory.Id &&
-                   remoteIds.SetEquals(localIds)
+                   remoteAdditionalIds.SetEquals(
+                       localAdditionalIds)
                 ? "Matches CurseForge"
                 : "Differs from CurseForge";
         }
