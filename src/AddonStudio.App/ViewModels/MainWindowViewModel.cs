@@ -62,6 +62,7 @@ public sealed record CollectorValidationIssueRow(
 
 public partial class MainWindowViewModel(
     AddonProjectService addonProjectService,
+    ProjectCurseForgeSettingsService projectCurseForgeSettingsService,
     IStudioSettingsStore settingsStore,
     ProjectCatalogService projectCatalogService,
     ProjectExplorerService projectExplorerService,
@@ -196,6 +197,28 @@ public partial class MainWindowViewModel(
     public ObservableCollection<string> PublishingScreenshots { get; } = [];
 
     [ObservableProperty]
+    private string curseForgeProjectId = string.Empty;
+
+    [ObservableProperty]
+    private string curseForgeSlug = string.Empty;
+
+    [ObservableProperty]
+    private string curseForgeMainCategoryId = string.Empty;
+
+    [ObservableProperty]
+    private string curseForgeAdditionalCategoryIds = string.Empty;
+
+    [ObservableProperty]
+    private string curseForgeLicense = string.Empty;
+
+    [ObservableProperty]
+    private string curseForgeDistributionSelection =
+        "Not configured";
+
+    [ObservableProperty]
+    private string currentProjectTocVersion = "—";
+
+    [ObservableProperty]
     private string? markdownDocumentPath;
 
     [ObservableProperty]
@@ -213,9 +236,11 @@ public partial class MainWindowViewModel(
 
     private string savedMarkdownText = string.Empty;
     private PublishingContentKind? markdownPublishingKind;
+    private ProjectCatalogEntry? currentProject;
 
     public MainWindowViewModel(
         AddonProjectService addonProjectService,
+        ProjectCurseForgeSettingsService projectCurseForgeSettingsService,
         IStudioSettingsStore settingsStore,
         ProjectCatalogService projectCatalogService,
         ProjectExplorerService projectExplorerService,
@@ -227,6 +252,7 @@ public partial class MainWindowViewModel(
         bool initialize = true)
         : this(
             addonProjectService,
+            projectCurseForgeSettingsService,
             settingsStore,
             projectCatalogService,
             projectExplorerService,
@@ -457,6 +483,25 @@ public partial class MainWindowViewModel(
             ? $"{PublishingScreenshots.Count} screenshot(s)"
             : "No screenshots";
 
+    public IReadOnlyList<string> CurseForgeDistributionOptions { get; } =
+    [
+        "Not configured",
+        "Allowed",
+        "Blocked"
+    ];
+
+    public string CurseForgeProjectName =>
+        CurrentProjectName ?? "—";
+
+    public string CurseForgeBindingStatus =>
+        string.IsNullOrWhiteSpace(CurseForgeProjectId) &&
+        string.IsNullOrWhiteSpace(CurseForgeSlug)
+            ? "Not linked"
+            : "Configured locally";
+
+    public string CurseForgeScreenshotsStatus =>
+        PublishingScreenshotsStatus;
+
     public bool IsProjectSidebar =>
         Sidebar is
             StudioSidebar.ProjectOverview or
@@ -623,6 +668,90 @@ public partial class MainWindowViewModel(
 
         Sidebar = StudioSidebar.CurseForge;
         WorkspaceTabIndex = 0;
+        RefreshPublishingMedia();
+        RaisePublishingProperties();
+    }
+
+    [RelayCommand]
+    private async Task SaveCurseForgeSettingsAsync()
+    {
+        if (currentProject is null ||
+            CurrentProjectDirectory is null)
+        {
+            StatusMessage =
+                "Open a project before editing CurseForge settings.";
+            return;
+        }
+
+        var additionalCategories =
+            ParseAdditionalCategoryIds(
+                CurseForgeAdditionalCategoryIds);
+
+        if (additionalCategories.Count > 4)
+        {
+            StatusMessage =
+                "CurseForge supports at most four additional categories.";
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(
+                CurseForgeMainCategoryId) &&
+            additionalCategories.Contains(
+                CurseForgeMainCategoryId.Trim(),
+                StringComparer.OrdinalIgnoreCase))
+        {
+            StatusMessage =
+                "The main category must not also be listed as an additional category.";
+            return;
+        }
+
+        var allowDistribution =
+            CurseForgeDistributionSelection switch
+            {
+                "Allowed" => true,
+                "Blocked" => false,
+                _ => (bool?)null
+            };
+
+        var configuration =
+            new CurseForgeConfiguration
+            {
+                ProjectId = CurseForgeProjectId,
+                Slug = CurseForgeSlug,
+                MainCategoryId =
+                    CurseForgeMainCategoryId,
+                AdditionalCategoryIds =
+                    additionalCategories,
+                License = CurseForgeLicense,
+                AllowDistribution =
+                    allowDistribution
+            };
+
+        await RunOperationAsync(async () =>
+        {
+            var updatedManifest =
+                await projectCurseForgeSettingsService.SaveAsync(
+                    CurrentProjectDirectory,
+                    currentProject.Manifest,
+                    configuration);
+
+            var updatedProject =
+                new ProjectCatalogEntry(
+                    CurrentProjectDirectory,
+                    updatedManifest);
+
+            ReplaceProjectInCatalog(
+                updatedProject);
+
+            currentProject = updatedProject;
+            LoadCurseForgeSettings(
+                updatedManifest.CurseForge);
+
+            RefreshCurrentProjectTree();
+
+            StatusMessage =
+                "CurseForge settings saved to project.json.";
+        });
     }
 
     [RelayCommand]
@@ -745,6 +874,9 @@ public partial class MainWindowViewModel(
         ClearMarkdownDocument();
 
         SelectedProject = null;
+        currentProject = null;
+        LoadCurseForgeSettings(null);
+        CurrentProjectTocVersion = "—";
         CurrentProjectName = null;
         CurrentProjectDirectory = null;
         CurrentProjectTypeName = null;
@@ -1054,10 +1186,16 @@ public partial class MainWindowViewModel(
             ClearMarkdownDocument();
         }
 
+        currentProject = project;
         CurrentProjectName = project.Name;
         CurrentProjectDirectory = project.ProjectDirectory;
         CurrentProjectTypeName = project.TypeName;
         CurrentPrimaryAddon = project.PrimaryAddon;
+        LoadCurseForgeSettings(
+            project.Manifest.CurseForge);
+        CurrentProjectTocVersion = "—";
+        _ = LoadCurrentProjectTocVersionAsync(
+            project);
 
         CurrentRuntimeAddons.Clear();
 
@@ -1522,6 +1660,14 @@ public partial class MainWindowViewModel(
         OnPropertyChanged(nameof(PublishingLogoActionText));
     }
 
+    partial void OnCurseForgeProjectIdChanged(
+        string value) =>
+        OnPropertyChanged(nameof(CurseForgeBindingStatus));
+
+    partial void OnCurseForgeSlugChanged(
+        string value) =>
+        OnPropertyChanged(nameof(CurseForgeBindingStatus));
+
     partial void OnCurrentProjectDirectoryChanged(
         string? value)
     {
@@ -1543,6 +1689,7 @@ public partial class MainWindowViewModel(
         OnPropertyChanged(nameof(HasCurrentProject));
         OnPropertyChanged(nameof(HasNoCurrentProject));
         OnPropertyChanged(nameof(WorkspaceTitle));
+        OnPropertyChanged(nameof(CurseForgeProjectName));
     }
 
     private bool IsSelectedProjectDirectory(
@@ -1572,6 +1719,157 @@ public partial class MainWindowViewModel(
                     Path.DirectorySeparatorChar,
                     Path.AltDirectorySeparatorChar),
             StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void LoadCurseForgeSettings(
+        CurseForgeConfiguration? configuration)
+    {
+        CurseForgeProjectId =
+            configuration?.ProjectId ?? string.Empty;
+        CurseForgeSlug =
+            configuration?.Slug ?? string.Empty;
+        CurseForgeMainCategoryId =
+            configuration?.MainCategoryId ?? string.Empty;
+        CurseForgeAdditionalCategoryIds =
+            configuration is null ||
+            configuration.AdditionalCategoryIds.Count == 0
+                ? string.Empty
+                : string.Join(
+                    ", ",
+                    configuration.AdditionalCategoryIds);
+        CurseForgeLicense =
+            configuration?.License ?? string.Empty;
+        CurseForgeDistributionSelection =
+            configuration?.AllowDistribution switch
+            {
+                true => "Allowed",
+                false => "Blocked",
+                null => "Not configured"
+            };
+    }
+
+    private static IReadOnlyList<string> ParseAdditionalCategoryIds(
+        string value) =>
+        value
+            .Split(
+                [',', ';', '\r', '\n'],
+                StringSplitOptions.RemoveEmptyEntries |
+                StringSplitOptions.TrimEntries)
+            .Where(category =>
+                !string.IsNullOrWhiteSpace(category))
+            .Distinct(
+                StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private void ReplaceProjectInCatalog(
+        ProjectCatalogEntry updatedProject)
+    {
+        for (var index = 0;
+             index < Projects.Count;
+             index++)
+        {
+            if (!string.Equals(
+                    Projects[index].ProjectDirectory,
+                    updatedProject.ProjectDirectory,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            Projects[index] = updatedProject;
+            break;
+        }
+
+        if (SelectedProject is not null &&
+            string.Equals(
+                SelectedProject.ProjectDirectory,
+                updatedProject.ProjectDirectory,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            SelectedProject = updatedProject;
+        }
+    }
+
+    private async Task LoadCurrentProjectTocVersionAsync(
+        ProjectCatalogEntry project)
+    {
+        try
+        {
+            var runtimeAddon =
+                !string.IsNullOrWhiteSpace(
+                    project.PrimaryAddon)
+                    ? project.PrimaryAddon
+                    : project.Manifest.Runtime.Addons
+                        .FirstOrDefault();
+
+            if (string.IsNullOrWhiteSpace(runtimeAddon))
+            {
+                return;
+            }
+
+            var addonDirectory = Path.Combine(
+                project.ProjectDirectory,
+                ProjectLayout.RuntimeDirectoryName,
+                runtimeAddon);
+
+            if (!Directory.Exists(addonDirectory))
+            {
+                return;
+            }
+
+            var tocPath =
+                Directory
+                    .EnumerateFiles(
+                        addonDirectory,
+                        "*.toc",
+                        SearchOption.TopDirectoryOnly)
+                    .OrderBy(
+                        path => path,
+                        StringComparer.OrdinalIgnoreCase)
+                    .FirstOrDefault(path =>
+                        string.Equals(
+                            Path.GetFileNameWithoutExtension(path),
+                            runtimeAddon,
+                            StringComparison.OrdinalIgnoreCase))
+                ?? Directory
+                    .EnumerateFiles(
+                        addonDirectory,
+                        "*.toc",
+                        SearchOption.TopDirectoryOnly)
+                    .OrderBy(
+                        path => path,
+                        StringComparer.OrdinalIgnoreCase)
+                    .FirstOrDefault();
+
+            if (tocPath is null)
+            {
+                return;
+            }
+
+            var toc =
+                await tocDocumentReader.ReadAsync(
+                    tocPath);
+
+            if (currentProject is null ||
+                !string.Equals(
+                    currentProject.ProjectDirectory,
+                    project.ProjectDirectory,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            CurrentProjectTocVersion =
+                DisplayMetadata(
+                    toc.Version);
+        }
+        catch (Exception exception)
+            when (exception is IOException
+                or UnauthorizedAccessException
+                or InvalidDataException)
+        {
+            CurrentProjectTocVersion = "—";
+        }
     }
 
     private void ClearCollectorImport()
@@ -1756,7 +2054,7 @@ public partial class MainWindowViewModel(
 
     private void RefreshCurrentProjectTree()
     {
-        var project = SelectedProject;
+        var project = currentProject;
 
         if (project is null ||
             CurrentProjectDirectory is null ||
