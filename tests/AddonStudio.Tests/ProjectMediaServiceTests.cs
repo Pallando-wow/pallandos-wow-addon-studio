@@ -98,6 +98,74 @@ public sealed class ProjectMediaServiceTests
             snapshot.ScreenshotFilePaths.Count);
     }
 
+    [Fact]
+    public async Task RemoveScreenshot_DeletesOnlyProjectScreenshot()
+    {
+        using var project = new TemporaryDirectory();
+        using var source = new TemporaryDirectory();
+
+        var sourcePath =
+            Path.Combine(
+                source.Path,
+                "overview.png");
+
+        await File.WriteAllTextAsync(
+            sourcePath,
+            "image");
+
+        var service =
+            new ProjectMediaService();
+
+        var added =
+            await service.AddScreenshotsAsync(
+                project.Path,
+                [sourcePath]);
+
+        var screenshotPath =
+            Assert.Single(
+                added);
+
+        service.RemoveScreenshot(
+            project.Path,
+            screenshotPath);
+
+        Assert.False(
+            File.Exists(
+                screenshotPath));
+
+        Assert.Empty(
+            service.GetSnapshot(
+                project.Path)
+                .ScreenshotFilePaths);
+    }
+
+    [Fact]
+    public async Task RemoveScreenshot_RejectsFileOutsideScreenshotFolder()
+    {
+        using var project = new TemporaryDirectory();
+
+        var outsideFile =
+            Path.Combine(
+                project.Path,
+                "outside.png");
+
+        await File.WriteAllTextAsync(
+            outsideFile,
+            "image");
+
+        var service =
+            new ProjectMediaService();
+
+        Assert.Throws<InvalidOperationException>(
+            () => service.RemoveScreenshot(
+                project.Path,
+                outsideFile));
+
+        Assert.True(
+            File.Exists(
+                outsideFile));
+    }
+
     private sealed class TemporaryDirectory : IDisposable
     {
         public TemporaryDirectory()
