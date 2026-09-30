@@ -2354,6 +2354,8 @@ public partial class MainWindowViewModel(
             nameof(CanSavePublishingWorkspace));
         OnPropertyChanged(
             nameof(CanRevertPublishingWorkspace));
+        OnPropertyChanged(
+            nameof(PublishingReleaseDirty));
     }
 
     private void UpdatePublishingWorkspaceDirty()
@@ -2376,6 +2378,13 @@ public partial class MainWindowViewModel(
                 PublishingChangelogText,
                 savedPublishingChangelogText,
                 StringComparison.Ordinal);
+
+        OnPropertyChanged(
+            nameof(PublishingReleaseDirty));
+        OnPropertyChanged(
+            nameof(PublishingWorkspaceStatus));
+        OnPropertyChanged(
+            nameof(CanSavePublishingWorkspace));
     }
 
     partial void OnPublishingLogoFileNameChanged(
@@ -2470,6 +2479,23 @@ public partial class MainWindowViewModel(
     partial void OnCurseForgeSlugChanged(
         string value) =>
         OnPropertyChanged(nameof(CurseForgeBindingStatus));
+
+    partial void OnCurrentProjectTocVersionChanged(
+        string value)
+    {
+        OnPropertyChanged(
+            nameof(HasCurrentReleaseVersion));
+        OnPropertyChanged(
+            nameof(CurrentReleaseTitle));
+        OnPropertyChanged(
+            nameof(PublishingChangelogFileName));
+        OnPropertyChanged(
+            nameof(PublishingChangelogStatus));
+        OnPropertyChanged(
+            nameof(PublishingWorkspaceStatus));
+        OnPropertyChanged(
+            nameof(CanSavePublishingWorkspace));
+    }
 
     partial void OnCurrentProjectDirectoryChanged(
         string? value)
@@ -3095,6 +3121,8 @@ public partial class MainWindowViewModel(
         OnPropertyChanged(nameof(PublishingSummaryFileName));
         OnPropertyChanged(nameof(PublishingDescriptionFileName));
         OnPropertyChanged(nameof(PublishingChangelogFileName));
+        OnPropertyChanged(nameof(HasCurrentReleaseVersion));
+        OnPropertyChanged(nameof(CurrentReleaseTitle));
         OnPropertyChanged(nameof(PublishingSummaryStatus));
         OnPropertyChanged(nameof(PublishingDescriptionStatus));
         OnPropertyChanged(nameof(PublishingChangelogStatus));
@@ -3104,6 +3132,7 @@ public partial class MainWindowViewModel(
         OnPropertyChanged(nameof(PublishingWorkspaceStatus));
         OnPropertyChanged(nameof(CanSavePublishingWorkspace));
         OnPropertyChanged(nameof(CanRevertPublishingWorkspace));
+        OnPropertyChanged(nameof(PublishingReleaseDirty));
         RaisePublishingMediaProperties();
         RaiseProjectDashboardProperties();
     }
