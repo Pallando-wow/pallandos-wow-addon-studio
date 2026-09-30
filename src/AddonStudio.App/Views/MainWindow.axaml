@@ -327,18 +327,6 @@
                                    Text="Libraries, UI components and asset packs will be managed here." />
                     </StackPanel>
 
-                    <StackPanel IsVisible="{Binding HasCurrentProject}"
-                                    Spacing="8">
-                            <TextBlock FontSize="16"
-                                       FontWeight="SemiBold"
-                                       Text="{Binding CurrentProjectName}" />
-                            <TextBlock FontSize="11"
-                                       Opacity="0.55"
-                                       TextWrapping="Wrap"
-                                       Text="Summary is English-only. Description and changelog can contain multiple language sections in the same Markdown document." />
-                        </StackPanel>
-                    </StackPanel>
-
                     <StackPanel IsVisible="{Binding IsSettingsSidebar}"
                                 Spacing="10">
                         <TextBlock FontSize="12"
