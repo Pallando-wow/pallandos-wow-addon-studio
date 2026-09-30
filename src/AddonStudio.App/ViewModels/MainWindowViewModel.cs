@@ -164,6 +164,9 @@ public partial class MainWindowViewModel(
     private string wowForeverAddOnsPath = string.Empty;
 
     [ObservableProperty]
+    private string savedVariablesPath = string.Empty;
+
+    [ObservableProperty]
     private string curseForgeApiKey = string.Empty;
 
     [ObservableProperty]
@@ -299,6 +302,7 @@ public partial class MainWindowViewModel(
 
         projectRoot = settings.ProjectRoot;
         wowForeverAddOnsPath = settings.WowForeverAddOnsPath;
+        savedVariablesPath = settings.SavedVariablesPath;
         curseForgeApiKey = settings.CurseForgeApiKey;
         curseForgeDataSourceStatus =
             string.IsNullOrWhiteSpace(curseForgeApiKey)
@@ -948,7 +952,13 @@ public partial class MainWindowViewModel(
             return;
         }
 
-        CollectorSourceFile = string.Empty;
+        CollectorSourceFile =
+            string.IsNullOrWhiteSpace(
+                SavedVariablesPath)
+                ? string.Empty
+                : PallandoCollectorSource
+                    .ResolveFromSavedVariablesDirectory(
+                        SavedVariablesPath);
         ClearCollectorImport();
         ActionTabTitle = "Collector Data";
         IsCreateAddonAction = false;
@@ -974,6 +984,7 @@ public partial class MainWindowViewModel(
         {
             ProjectRoot = ProjectRoot.Trim(),
             WowForeverAddOnsPath = WowForeverAddOnsPath.Trim(),
+            SavedVariablesPath = SavedVariablesPath.Trim(),
             CurseForgeApiKey = CurseForgeApiKey.Trim()
         };
 
@@ -990,6 +1001,12 @@ public partial class MainWindowViewModel(
 
         ProjectRoot = Path.GetFullPath(settings.ProjectRoot);
         WowForeverAddOnsPath = Path.GetFullPath(settings.WowForeverAddOnsPath);
+        SavedVariablesPath =
+            string.IsNullOrWhiteSpace(
+                settings.SavedVariablesPath)
+                ? string.Empty
+                : Path.GetFullPath(
+                    settings.SavedVariablesPath);
         CurseForgeApiKey = settings.CurseForgeApiKey;
         SetupRequired = false;
         Sidebar = StudioSidebar.Start;
@@ -1006,6 +1023,8 @@ public partial class MainWindowViewModel(
 
         ProjectRoot = string.Empty;
         WowForeverAddOnsPath = string.Empty;
+        SavedVariablesPath = string.Empty;
+        CollectorSourceFile = string.Empty;
         CurseForgeApiKey = string.Empty;
         CurseForgeDataSourceReady = false;
         CurseForgeDataSourceStatus = "Not configured";
@@ -1437,9 +1456,19 @@ public partial class MainWindowViewModel(
     {
         await RunOperationAsync(async () =>
         {
+            var sourceFile =
+                string.IsNullOrWhiteSpace(
+                    SavedVariablesPath)
+                    ? CollectorSourceFile
+                    : PallandoCollectorSource
+                        .ResolveFromSavedVariablesDirectory(
+                            SavedVariablesPath);
+
+            CollectorSourceFile = sourceFile;
+
             var snapshot =
                 await pallandoCollectorReader.ReadAsync(
-                    CollectorSourceFile);
+                    sourceFile);
 
             CollectorApis.Clear();
 
