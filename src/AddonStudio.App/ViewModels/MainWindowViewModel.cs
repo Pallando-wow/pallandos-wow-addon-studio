@@ -206,6 +206,9 @@ public partial class MainWindowViewModel(
     private string curseForgeDataSourceStatus =
         "Not configured";
 
+    private int curseForgeGameId;
+    private CurseForgeProject? curseForgeRemoteProject;
+
     [ObservableProperty]
     private CurseForgeCategoryChoice?
         selectedCurseForgeMainCategory;
@@ -722,14 +725,149 @@ public partial class MainWindowViewModel(
     public string CurseForgeProjectName =>
         CurrentProjectName ?? "—";
 
+    public bool CurseForgeProjectConnected =>
+        curseForgeRemoteProject is not null;
+
+    public string CurseForgeRemoteProjectName =>
+        curseForgeRemoteProject?.Name ?? "—";
+
+    public string CurseForgeRemoteProjectSlug =>
+        curseForgeRemoteProject?.Slug ?? "—";
+
+    public string CurseForgeRemoteProjectStatus =>
+        curseForgeRemoteProject?.StatusName ??
+        "Not loaded";
+
+    public bool CanLoadCurseForgeProject =>
+        CurseForgeDataSourceReady &&
+        (!string.IsNullOrWhiteSpace(
+             CurseForgeProjectId) ||
+         !string.IsNullOrWhiteSpace(
+             CurseForgeSlug));
+
     public string CurseForgeBindingStatus =>
-        string.IsNullOrWhiteSpace(CurseForgeProjectId) &&
-        string.IsNullOrWhiteSpace(CurseForgeSlug)
-            ? "Not linked"
-            : "Configured locally";
+        curseForgeRemoteProject is not null
+            ? $"Connected · {curseForgeRemoteProject.Name} · #{curseForgeRemoteProject.Id}"
+            : string.IsNullOrWhiteSpace(CurseForgeProjectId) &&
+              string.IsNullOrWhiteSpace(CurseForgeSlug)
+                ? "Not linked"
+                : "Configured locally · not verified";
+
+    public string CurseForgeCategoryComparisonStatus
+    {
+        get
+        {
+            if (curseForgeRemoteProject is null)
+            {
+                return "Not checked";
+            }
+
+            if (SelectedCurseForgeMainCategory is null)
+            {
+                return "Local classification incomplete";
+            }
+
+            var remoteIds =
+                curseForgeRemoteProject.CategoryIds
+                    .Where(id =>
+                        CurseForgeCategories.Any(
+                            category =>
+                                category.Id == id))
+                    .ToHashSet();
+
+            var localIds =
+                CurseForgeCategories
+                    .Where(category =>
+                        category.IsSelected)
+                    .Select(category =>
+                        category.Id)
+                    .Append(
+                        SelectedCurseForgeMainCategory.Id)
+                    .ToHashSet();
+
+            return curseForgeRemoteProject.PrimaryCategoryId ==
+                       SelectedCurseForgeMainCategory.Id &&
+                   remoteIds.SetEquals(localIds)
+                ? "Matches CurseForge"
+                : "Differs from CurseForge";
+        }
+    }
 
     public string CurseForgeScreenshotsStatus =>
-        PublishingScreenshotsStatus;
+        HasPublishingScreenshots
+            ? $"Ready · {PublishingScreenshots.Count} screenshot(s)"
+            : "Optional · none";
+
+    public string CurseForgeReadinessBinding =>
+        CurseForgeProjectConnected
+            ? "Ready"
+            : "Missing";
+
+    public string CurseForgeReadinessSummary =>
+        PublishingSummaryStatus == "Created"
+            ? "Ready"
+            : "Missing";
+
+    public string CurseForgeReadinessDescription =>
+        PublishingDescriptionStatus == "Created"
+            ? "Ready"
+            : "Missing";
+
+    public string CurseForgeReadinessLogo =>
+        HasPublishingLogo
+            ? "Ready"
+            : "Missing";
+
+    public string CurseForgeReadinessVersion =>
+        HasCurrentReleaseVersion
+            ? $"Ready · {CurrentProjectTocVersion}"
+            : "Missing";
+
+    public string CurseForgeReadinessChangelog =>
+        PublishingChangelogStatus == "Created"
+            ? "Ready"
+            : PublishingChangelogStatus.StartsWith(
+                "Legacy",
+                StringComparison.Ordinal)
+                ? "Needs migration"
+                : "Missing";
+
+    public string CurseForgeReadinessMainCategory =>
+        SelectedCurseForgeMainCategory is not null
+            ? $"Ready · {SelectedCurseForgeMainCategory.Name}"
+            : "Missing";
+
+    public string CurseForgeReadinessLicense =>
+        string.IsNullOrWhiteSpace(
+            CurseForgeLicense)
+            ? "Missing"
+            : $"Ready · {CurseForgeLicense.Trim()}";
+
+    public string CurseForgeReadinessDistribution =>
+        CurseForgeDistributionSelection == "Not configured"
+            ? "Missing"
+            : $"Ready · {CurseForgeDistributionSelection}";
+
+    public int CurseForgeReadinessIssuesCount =>
+        new[]
+        {
+            CurseForgeReadinessBinding,
+            CurseForgeReadinessSummary,
+            CurseForgeReadinessDescription,
+            CurseForgeReadinessLogo,
+            CurseForgeReadinessVersion,
+            CurseForgeReadinessChangelog,
+            CurseForgeReadinessMainCategory,
+            CurseForgeReadinessLicense,
+            CurseForgeReadinessDistribution
+        }.Count(status =>
+            status == "Missing" ||
+            status == "Needs migration");
+
+    public string CurseForgePublishingReadiness =>
+        CurseForgeReadinessIssuesCount == 0
+            ? "Ready for release preparation"
+            : $"{CurseForgeReadinessIssuesCount} item(s) need attention";
 
     public string ProjectDashboardVersion =>
         HasSelectedProjectTocMetadata
@@ -759,7 +897,7 @@ public partial class MainWindowViewModel(
     public string ProjectDashboardCurseForgeStatus =>
         !CurseForgeDataSourceReady
             ? "Data source not connected"
-            : SelectedProjectCurseForge;
+            : CurseForgeBindingStatus;
 
     public bool IsProjectSidebar =>
         Sidebar is
