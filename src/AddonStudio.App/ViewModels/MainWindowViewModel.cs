@@ -1509,9 +1509,19 @@ public partial class MainWindowViewModel(
     [RelayCommand]
     private async Task SavePublishingWorkspaceAsync()
     {
-        if (!PublishingWorkspaceDirty ||
+        if ((!PublishingWorkspaceDirty &&
+             !publishingChangelogLoadedFromLegacy) ||
             CurrentProjectDirectory is null)
         {
+            return;
+        }
+
+        if ((PublishingReleaseDirty ||
+             publishingChangelogLoadedFromLegacy) &&
+            !HasCurrentReleaseVersion)
+        {
+            StatusMessage =
+                "The .toc version is required before saving the release changelog.";
             return;
         }
 
@@ -1539,15 +1549,18 @@ public partial class MainWindowViewModel(
                     PublishingDescriptionText);
             }
 
-            if (!string.Equals(
-                    PublishingChangelogText,
-                    savedPublishingChangelogText,
-                    StringComparison.Ordinal))
+            if (PublishingReleaseDirty ||
+                publishingChangelogLoadedFromLegacy)
             {
-                await publishingContentService.WriteAsync(
-                    CurrentProjectDirectory,
-                    PublishingContentKind.Changelog,
-                    PublishingChangelogText);
+                await publishingContentService
+                    .WriteReleaseChangelogAsync(
+                        CurrentProjectDirectory,
+                        CurrentProjectTocVersion,
+                        PublishingChangelogText,
+                        removeLegacyFile: true);
+
+                publishingChangelogLoadedFromLegacy =
+                    false;
             }
 
             savedPublishingSummaryText =
