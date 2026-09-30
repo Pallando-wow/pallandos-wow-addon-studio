@@ -211,6 +211,7 @@ public partial class MainWindowViewModel(
 
     private int curseForgeGameId;
     private string savedCurseForgeApiKey = string.Empty;
+    private bool suppressCurseForgeMainCategorySelectionChanged;
     private CurseForgeProject? curseForgeRemoteProject;
 
     [ObservableProperty]
@@ -1794,16 +1795,43 @@ public partial class MainWindowViewModel(
 
     private void RefreshCurseForgeCategoryFilters()
     {
-        FilteredCurseForgeMainCategories.Clear();
+        var selectedMainCategory =
+            SelectedCurseForgeMainCategory ??
+            CurseForgeCategories.FirstOrDefault(
+                category =>
+                    string.Equals(
+                        category.Id.ToString(),
+                        CurseForgeMainCategoryId,
+                        StringComparison.OrdinalIgnoreCase));
 
-        foreach (var category in
-                 CurseForgeCategories.Where(category =>
-                     MatchesCategorySearch(
-                         category,
-                         CurseForgeMainCategorySearchText)))
+        suppressCurseForgeMainCategorySelectionChanged =
+            true;
+
+        try
         {
-            FilteredCurseForgeMainCategories.Add(
-                category);
+            FilteredCurseForgeMainCategories.Clear();
+
+            foreach (var category in
+                     CurseForgeCategories.Where(category =>
+                         MatchesCategorySearch(
+                             category,
+                             CurseForgeMainCategorySearchText)))
+            {
+                FilteredCurseForgeMainCategories.Add(
+                    category);
+            }
+
+            SelectedCurseForgeMainCategory =
+                selectedMainCategory is not null &&
+                FilteredCurseForgeMainCategories.Contains(
+                    selectedMainCategory)
+                    ? selectedMainCategory
+                    : null;
+        }
+        finally
+        {
+            suppressCurseForgeMainCategorySelectionChanged =
+                false;
         }
 
         FilteredCurseForgeAdditionalCategories.Clear();
@@ -3127,6 +3155,11 @@ public partial class MainWindowViewModel(
     partial void OnSelectedCurseForgeMainCategoryChanged(
         CurseForgeCategoryChoice? value)
     {
+        if (suppressCurseForgeMainCategorySelectionChanged)
+        {
+            return;
+        }
+
         if (value?.IsSelected == true)
         {
             value.IsSelected = false;
