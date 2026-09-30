@@ -479,8 +479,14 @@
                                             <TextBox Text="{Binding CurseForgeApiKey}"
                                                      PasswordChar="●"
                                                      Watermark="Enter CurseForge API key ..." />
+                                            <TextBlock FontSize="11"
+                                                       Opacity="0.65"
+                                                       Text="{Binding CurseForgeApiKeyStorageStatus}" />
                                             <StackPanel Orientation="Horizontal"
                                                         Spacing="10">
+                                                <Button IsEnabled="{Binding CanSaveCurseForgeApiKey}"
+                                                        Command="{Binding SaveCurseForgeApiKeyCommand}"
+                                                        Content="Save API key" />
                                                 <Button Command="{Binding TestCurseForgeDataSourceCommand}"
                                                         Content="Test connection" />
                                                 <TextBlock VerticalAlignment="Center"
