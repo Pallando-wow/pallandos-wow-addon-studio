@@ -96,6 +96,33 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void ChoosePublishingLogo_Click(
+        object? sender,
+        RoutedEventArgs e)
+    {
+        var path = await PickLogoFileAsync(
+            "Select project logo");
+
+        if (path is not null && ViewModel is not null)
+        {
+            await ViewModel.SetPublishingLogoAsync(path);
+        }
+    }
+
+    private async void AddPublishingScreenshots_Click(
+        object? sender,
+        RoutedEventArgs e)
+    {
+        var paths = await PickScreenshotFilesAsync(
+            "Select project screenshots");
+
+        if (paths.Count > 0 && ViewModel is not null)
+        {
+            await ViewModel.AddPublishingScreenshotsAsync(
+                paths);
+        }
+    }
+
     private async void SaveSettings_Click(
         object? sender,
         RoutedEventArgs e)
@@ -701,6 +728,61 @@ public partial class MainWindow : Window
         return files.Count == 0
             ? null
             : files[0].TryGetLocalPath();
+    }
+
+    private async Task<string?> PickLogoFileAsync(
+        string title)
+    {
+        var files = await StorageProvider.OpenFilePickerAsync(
+            new FilePickerOpenOptions
+            {
+                Title = title,
+                AllowMultiple = false,
+                FileTypeFilter =
+                [
+                    new FilePickerFileType(
+                        "PNG image")
+                    {
+                        Patterns = ["*.png"]
+                    }
+                ]
+            });
+
+        return files.Count == 0
+            ? null
+            : files[0].TryGetLocalPath();
+    }
+
+    private async Task<IReadOnlyList<string>> PickScreenshotFilesAsync(
+        string title)
+    {
+        var files = await StorageProvider.OpenFilePickerAsync(
+            new FilePickerOpenOptions
+            {
+                Title = title,
+                AllowMultiple = true,
+                FileTypeFilter =
+                [
+                    new FilePickerFileType(
+                        "Images")
+                    {
+                        Patterns =
+                        [
+                            "*.png",
+                            "*.jpg",
+                            "*.jpeg"
+                        ]
+                    }
+                ]
+            });
+
+        return files
+            .Select(file =>
+                file.TryGetLocalPath())
+            .Where(path =>
+                !string.IsNullOrWhiteSpace(path))
+            .Select(path => path!)
+            .ToArray();
     }
 
     private async Task<string?> PickFolderAsync(string title)
