@@ -136,10 +136,30 @@ public partial class MainWindow : Window
         ScrollPublishingSectionIntoView(
             PublishingCurrentReleaseSection);
 
-    private static void ScrollPublishingSectionIntoView(
+    private void ScrollPublishingSectionIntoView(
         Control section)
     {
-        section.BringIntoView();
+        var position =
+            section.TranslatePoint(
+                new Point(0, 0),
+                PublishingScrollViewer);
+
+        if (position is null)
+        {
+            section.BringIntoView();
+            return;
+        }
+
+        var targetY =
+            PublishingScrollViewer.Offset.Y +
+            position.Value.Y;
+
+        PublishingScrollViewer.Offset =
+            new Vector(
+                PublishingScrollViewer.Offset.X,
+                Math.Max(
+                    0,
+                    targetY));
     }
 
     private async void ChoosePublishingLogo_Click(
