@@ -112,6 +112,36 @@ public partial class MainWindow : Window
         }
     }
 
+    private void PublishingSummarySection_Click(
+        object? sender,
+        RoutedEventArgs e) =>
+        ScrollPublishingSectionIntoView(
+            PublishingSummarySection);
+
+    private void PublishingDescriptionSection_Click(
+        object? sender,
+        RoutedEventArgs e) =>
+        ScrollPublishingSectionIntoView(
+            PublishingDescriptionSection);
+
+    private void PublishingMediaSection_Click(
+        object? sender,
+        RoutedEventArgs e) =>
+        ScrollPublishingSectionIntoView(
+            PublishingMediaSection);
+
+    private void PublishingCurrentReleaseSection_Click(
+        object? sender,
+        RoutedEventArgs e) =>
+        ScrollPublishingSectionIntoView(
+            PublishingCurrentReleaseSection);
+
+    private static void ScrollPublishingSectionIntoView(
+        Control section)
+    {
+        section.BringIntoView();
+    }
+
     private async void ChoosePublishingLogo_Click(
         object? sender,
         RoutedEventArgs e)
