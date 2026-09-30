@@ -448,7 +448,7 @@
                                             <TextBlock FontSize="12"
                                                        Opacity="0.65"
                                                        TextWrapping="Wrap"
-                                                       Text="The API key is stored only in the local Studio settings. CurseForge project features stay restricted until the data source connects successfully." />
+                                                       Text="The API key is stored locally and protected for the current Windows user. CurseForge project features stay restricted until the data source connects successfully." />
                                             <TextBlock Text="API key" />
                                             <TextBox Text="{Binding CurseForgeApiKey}"
                                                      PasswordChar="●"
