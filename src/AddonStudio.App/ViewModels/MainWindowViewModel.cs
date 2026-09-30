@@ -2883,10 +2883,15 @@ public partial class MainWindowViewModel(
                 publishingContentService.ReadAsync(
                     CurrentProjectDirectory,
                     PublishingContentKind.Description);
+
             var changelogTask =
-                publishingContentService.ReadAsync(
-                    CurrentProjectDirectory,
-                    PublishingContentKind.Changelog);
+                HasCurrentReleaseVersion
+                    ? publishingContentService
+                        .ReadReleaseChangelogAsync(
+                            CurrentProjectDirectory,
+                            CurrentProjectTocVersion)
+                    : Task.FromResult(
+                        string.Empty);
 
             await Task.WhenAll(
                 summaryTask,
@@ -2915,12 +2920,24 @@ public partial class MainWindowViewModel(
                 PublishingDescriptionText;
             savedPublishingChangelogText =
                 PublishingChangelogText;
+
+            publishingChangelogLoadedFromLegacy =
+                HasCurrentReleaseVersion &&
+                publishingContentService
+                    .IsReleaseChangelogUsingLegacyFallback(
+                        CurrentProjectDirectory,
+                        CurrentProjectTocVersion);
+
             publishingWorkspaceProjectDirectory =
                 CurrentProjectDirectory;
             PublishingWorkspaceDirty = false;
 
+            RaisePublishingProperties();
+
             StatusMessage =
-                "Publishing content loaded.";
+                publishingChangelogLoadedFromLegacy
+                    ? "Publishing content loaded. Legacy changelog will migrate on save."
+                    : "Publishing content loaded.";
         });
     }
 
@@ -2943,6 +2960,7 @@ public partial class MainWindowViewModel(
         savedPublishingDescriptionText = string.Empty;
         savedPublishingChangelogText = string.Empty;
         publishingWorkspaceProjectDirectory = null;
+        publishingChangelogLoadedFromLegacy = false;
         PublishingWorkspaceDirty = false;
     }
 
