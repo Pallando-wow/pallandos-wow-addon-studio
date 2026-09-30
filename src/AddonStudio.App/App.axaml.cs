@@ -10,6 +10,7 @@ using AddonStudio.Data.Projects;
 using AddonStudio.Data.Settings;
 using AddonStudio.Wow.Collector;
 using AddonStudio.Wow.Projects;
+using AddonStudio.Wow.Toc;
 
 namespace AddonStudio.App;
 
@@ -45,6 +46,9 @@ public partial class App : Avalonia.Application
             var publishingContentService =
                 new PublishingContentService();
 
+            var tocDocumentReader =
+                new TocDocumentReader();
+
             var pallandoCollectorReader =
                 new PallandoCollectorReader();
 
@@ -60,6 +64,7 @@ public partial class App : Avalonia.Application
                     projectExplorerService,
                     markdownDocumentService,
                     publishingContentService,
+                    tocDocumentReader,
                     pallandoCollectorReader,
                     initialize: true),
             };
