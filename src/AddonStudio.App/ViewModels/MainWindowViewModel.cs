@@ -1079,7 +1079,7 @@ public partial class MainWindowViewModel(
     }
 
     [RelayCommand]
-    private void ShowCurseForge()
+    private async Task ShowCurseForge()
     {
         if (SetupRequired ||
             !HasCurrentProject)
@@ -1091,6 +1091,21 @@ public partial class MainWindowViewModel(
         WorkspaceTabIndex = 0;
         RefreshPublishingMedia();
         RaisePublishingProperties();
+
+        if (!CurseForgeDataSourceReady &&
+            IsCurseForgeDataSourceConfigured &&
+            !CurseForgeApiKeyDirty)
+        {
+            await TestCurseForgeDataSourceAsync();
+            return;
+        }
+
+        if (CurseForgeDataSourceReady &&
+            CanLoadCurseForgeProject &&
+            !CurseForgeProjectConnected)
+        {
+            await LoadCurseForgeProjectAsync();
+        }
     }
 
     [RelayCommand]
