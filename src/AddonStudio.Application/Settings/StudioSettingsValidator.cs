@@ -18,11 +18,32 @@ public static class StudioSettingsValidator
             "WoW Forever AddOns path",
             issues);
 
+        ValidateOptionalDirectory(
+            settings.SavedVariablesPath,
+            "WoW SavedVariables path",
+            issues);
+
         return issues;
     }
 
     public static bool IsComplete(StudioSettings settings) =>
         Validate(settings).Count == 0;
+
+    private static void ValidateOptionalDirectory(
+        string? value,
+        string label,
+        ICollection<string> issues)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return;
+        }
+
+        ValidateDirectory(
+            value,
+            label,
+            issues);
+    }
 
     private static void ValidateDirectory(
         string? value,
