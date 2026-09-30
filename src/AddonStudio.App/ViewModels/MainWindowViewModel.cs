@@ -1189,11 +1189,14 @@ public partial class MainWindowViewModel(
             var project =
                 await ResolveConfiguredCurseForgeProjectAsync();
 
-            SetCurseForgeRemoteProject(
-                project);
+            var classificationInitialized =
+                SetCurseForgeRemoteProject(
+                    project);
 
             StatusMessage =
-                $"CurseForge project '{project.Name}' connected.";
+                classificationInitialized
+                    ? $"CurseForge project '{project.Name}' connected; local classification initialized from CurseForge."
+                    : $"CurseForge project '{project.Name}' connected.";
         });
     }
 
@@ -1286,11 +1289,14 @@ public partial class MainWindowViewModel(
                         var project =
                             await ResolveConfiguredCurseForgeProjectAsync();
 
-                        SetCurseForgeRemoteProject(
-                            project);
+                        var classificationInitialized =
+                            SetCurseForgeRemoteProject(
+                                project);
 
                         StatusMessage =
-                            $"CurseForge connected · {project.Name}.";
+                            classificationInitialized
+                                ? $"CurseForge connected · {project.Name}; local classification initialized from CurseForge."
+                                : $"CurseForge connected · {project.Name}.";
                     }
                     catch (Exception exception)
                         when (exception is
@@ -1377,7 +1383,7 @@ public partial class MainWindowViewModel(
         return project;
     }
 
-    private void SetCurseForgeRemoteProject(
+    private bool SetCurseForgeRemoteProject(
         CurseForgeProject project)
     {
         curseForgeRemoteProject =
@@ -1388,9 +1394,89 @@ public partial class MainWindowViewModel(
         CurseForgeSlug =
             project.Slug;
 
+        var classificationInitialized =
+            ApplyRemoteCurseForgeCategoriesWhenLocalEmpty(
+                project);
+
         RaiseCurseForgeProjectProperties();
         RaiseCurseForgeReadinessProperties();
         RaiseProjectDashboardProperties();
+
+        return classificationInitialized;
+    }
+
+    private bool ApplyRemoteCurseForgeCategoriesWhenLocalEmpty(
+        CurseForgeProject project)
+    {
+        var changed = false;
+
+        if (string.IsNullOrWhiteSpace(
+                CurseForgeMainCategoryId))
+        {
+            var remoteMainCategory =
+                CurseForgeCategories.FirstOrDefault(
+                    category =>
+                        category.Id ==
+                        project.PrimaryCategoryId);
+
+            if (remoteMainCategory is not null)
+            {
+                CurseForgeMainCategoryId =
+                    remoteMainCategory.Id.ToString();
+                SelectedCurseForgeMainCategory =
+                    remoteMainCategory;
+                changed = true;
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(
+                CurseForgeAdditionalCategoryIds))
+        {
+            var remoteAdditionalCategories =
+                project.CategoryIds
+                    .Where(id =>
+                        id != project.PrimaryCategoryId)
+                    .Select(id =>
+                        CurseForgeCategories.FirstOrDefault(
+                            category =>
+                                category.Id == id))
+                    .OfType<CurseForgeCategoryChoice>()
+                    .Where(category =>
+                        category !=
+                        SelectedCurseForgeMainCategory)
+                    .DistinctBy(category =>
+                        category.Id)
+                    .Take(4)
+                    .ToArray();
+
+            if (remoteAdditionalCategories.Length > 0)
+            {
+                foreach (var category in
+                         remoteAdditionalCategories)
+                {
+                    category.IsSelected = true;
+                }
+
+                CurseForgeAdditionalCategoryIds =
+                    string.Join(
+                        ", ",
+                        remoteAdditionalCategories
+                            .Select(category =>
+                                category.Id));
+
+                changed = true;
+            }
+        }
+
+        if (changed)
+        {
+            RefreshCurseForgeCategoryFilters();
+            OnPropertyChanged(
+                nameof(CurseForgeCategoryComparisonStatus));
+            RaiseCurseForgeReadinessProperties();
+        }
+
+        return changed;
     }
 
     private void ClearCurseForgeRemoteProject()
