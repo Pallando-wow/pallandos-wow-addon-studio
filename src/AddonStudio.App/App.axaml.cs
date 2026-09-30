@@ -9,6 +9,7 @@ using AddonStudio.Application.Publishing;
 using AddonStudio.Data.Projects;
 using AddonStudio.Data.Settings;
 using AddonStudio.Media;
+using AddonStudio.Platforms.CurseForge;
 using AddonStudio.Wow.Collector;
 using AddonStudio.Wow.Projects;
 using AddonStudio.Wow.Toc;
@@ -37,6 +38,10 @@ public partial class App : Avalonia.Application
             var projectCurseForgeSettingsService =
                 new ProjectCurseForgeSettingsService(
                     manifestWriter);
+
+            var curseForgeDataSourceClient =
+                new CurseForgeDataSourceClient(
+                    new HttpClient());
 
             var projectCatalogService =
                 new ProjectCatalogService(
@@ -69,6 +74,7 @@ public partial class App : Avalonia.Application
                 DataContext = new MainWindowViewModel(
                     addonProjectService,
                     projectCurseForgeSettingsService,
+                    curseForgeDataSourceClient,
                     settingsStore,
                     projectCatalogService,
                     projectExplorerService,
