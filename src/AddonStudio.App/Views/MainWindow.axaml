@@ -23,20 +23,45 @@
                 Padding="14,0"
                 BorderThickness="0,0,0,1"
                 BorderBrush="#353535">
-            <Grid ColumnDefinitions="Auto,*,Auto">
+            <Grid ColumnDefinitions="Auto,Auto,*,Auto"
+                  ColumnSpacing="14">
                 <TextBlock Grid.Column="0"
                            VerticalAlignment="Center"
                            FontSize="16"
                            FontWeight="SemiBold"
                            Text="Pallando's WoW Addon Studio" />
 
-                <TextBlock Grid.Column="1"
-                           Margin="24,0,0,0"
-                           VerticalAlignment="Center"
-                           Opacity="0.65"
-                           Text="{Binding CurrentProjectName}" />
+                <StackPanel Grid.Column="1"
+                            Orientation="Horizontal"
+                            VerticalAlignment="Center"
+                            Spacing="6">
+                    <Button Width="30"
+                            Height="30"
+                            Padding="0"
+                            IsEnabled="{Binding IsSetupComplete}"
+                            Command="{Binding OpenCreateAddonCommand}"
+                            Content="＋"
+                            FontSize="17"
+                            ToolTip.Tip="New Addon" />
+                    <Button Width="30"
+                            Height="30"
+                            Padding="0"
+                            IsEnabled="{Binding IsSetupComplete}"
+                            Command="{Binding OpenImportAddonCommand}"
+                            Content="⇩"
+                            FontSize="16"
+                            ToolTip.Tip="Import Existing Addon" />
+                    <Button Width="30"
+                            Height="30"
+                            Padding="0"
+                            IsEnabled="{Binding IsSetupComplete}"
+                            Command="{Binding OpenCollectorImportCommand}"
+                            Content="◎"
+                            FontSize="16"
+                            ToolTip.Tip="Import Collector Data" />
+                </StackPanel>
 
-                <TextBlock Grid.Column="2"
+                <TextBlock Grid.Column="3"
                            VerticalAlignment="Center"
                            Opacity="0.65"
                            Text="WoW Forever" />
@@ -174,11 +199,6 @@
                             </ListBox.ItemTemplate>
                         </ListBox>
 
-                        <Button IsEnabled="{Binding CanOpenSelectedProject}"
-                                HorizontalAlignment="Stretch"
-                                Click="OpenSelectedProject_Click"
-                                Content="Open Project" />
-
                         <StackPanel IsVisible="{Binding HasUnmanagedFolders}"
                                     Spacing="6"
                                     Margin="0,8,0,0">
@@ -205,23 +225,6 @@
                                        TextWrapping="Wrap"
                                        Text="These folders are not managed Studio projects. Keep source projects outside the global project root and use Import Existing Addon." />
                         </StackPanel>
-
-                        <Separator Margin="0,6" />
-
-                        <TextBlock FontSize="12"
-                                   FontWeight="SemiBold"
-                                   Opacity="0.75"
-                                   Text="QUICK ACTIONS" />
-
-                        <Button Command="{Binding OpenCreateAddonCommand}"
-                                HorizontalAlignment="Stretch"
-                                Content="+ New Addon" />
-                        <Button Command="{Binding OpenImportAddonCommand}"
-                                HorizontalAlignment="Stretch"
-                                Content="Import Existing Addon" />
-                        <Button Command="{Binding OpenCollectorImportCommand}"
-                                HorizontalAlignment="Stretch"
-                                Content="Import Collector Data" />
 
                         <StackPanel IsVisible="{Binding HasProjectCatalogIssues}"
                                     Spacing="5"
@@ -439,8 +442,9 @@
                                 </StackPanel>
                             </ScrollViewer>
 
-                            <ScrollViewer IsVisible="{Binding IsStartSidebar}">
-                                <StackPanel Margin="32"
+                            <Grid IsVisible="{Binding IsStartSidebar}">
+                                <ScrollViewer IsVisible="{Binding HasNoSelectedProject}">
+                                    <StackPanel Margin="32"
                                             MaxWidth="920"
                                             HorizontalAlignment="Left"
                                             Spacing="24">
@@ -520,7 +524,7 @@
 
                                             <TextBlock TextWrapping="Wrap"
                                                        Opacity="0.65"
-                                                       Text="Select a project in the left sidebar to open it. Create and import actions are available there as well." />
+                                                       Text="Select a project in the left sidebar to preview it. Create and import actions are available from the toolbar above." />
                                         </StackPanel>
                                     </Border>
 
@@ -535,11 +539,74 @@
                                                        Text="No Studio projects yet" />
                                             <TextBlock Opacity="0.65"
                                                        TextWrapping="Wrap"
-                                                       Text="Use New Addon or Import Existing Addon in the left sidebar to add your first managed project." />
+                                                       Text="Use the New Addon or Import Existing Addon buttons in the toolbar to add your first managed project." />
                                         </StackPanel>
                                     </Border>
-                                </StackPanel>
-                            </ScrollViewer>
+                                    </StackPanel>
+                                </ScrollViewer>
+
+                                <ScrollViewer IsVisible="{Binding HasSelectedProject}">
+                                    <StackPanel Margin="32"
+                                                MaxWidth="920"
+                                                HorizontalAlignment="Left"
+                                                Spacing="20">
+                                        <TextBlock FontSize="28"
+                                                   FontWeight="SemiBold"
+                                                   Text="{Binding SelectedProjectName}" />
+                                        <TextBlock FontSize="14"
+                                                   Opacity="0.7"
+                                                   Text="Project preview" />
+
+                                        <Border Padding="20"
+                                                CornerRadius="8"
+                                                BorderThickness="1"
+                                                BorderBrush="#3A3A3A">
+                                            <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto"
+                                                  ColumnDefinitions="180,*"
+                                                  ColumnSpacing="18"
+                                                  RowSpacing="10">
+                                                <TextBlock Grid.Row="0"
+                                                           FontWeight="SemiBold"
+                                                           Text="Type" />
+                                                <TextBlock Grid.Row="0"
+                                                           Grid.Column="1"
+                                                           Text="{Binding SelectedProjectTypeName}" />
+
+                                                <TextBlock Grid.Row="1"
+                                                           FontWeight="SemiBold"
+                                                           Text="Primary addon" />
+                                                <TextBlock Grid.Row="1"
+                                                           Grid.Column="1"
+                                                           Text="{Binding SelectedProjectPrimaryAddon}" />
+
+                                                <TextBlock Grid.Row="2"
+                                                           FontWeight="SemiBold"
+                                                           Text="Runtime addons" />
+                                                <TextBlock Grid.Row="2"
+                                                           Grid.Column="1"
+                                                           Text="{Binding SelectedProjectRuntimeAddonCount}" />
+
+                                                <TextBlock Grid.Row="3"
+                                                           FontWeight="SemiBold"
+                                                           Text="Project directory" />
+                                                <TextBlock Grid.Row="3"
+                                                           Grid.Column="1"
+                                                           TextWrapping="Wrap"
+                                                           Opacity="0.7"
+                                                           Text="{Binding SelectedProjectDirectory}" />
+
+                                                <Button Grid.Row="4"
+                                                        Grid.ColumnSpan="2"
+                                                        Margin="0,8,0,0"
+                                                        HorizontalAlignment="Left"
+                                                        IsEnabled="{Binding CanOpenSelectedProject}"
+                                                        Click="OpenSelectedProject_Click"
+                                                        Content="Open Project" />
+                                            </Grid>
+                                        </Border>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </Grid>
 
                             <ScrollViewer IsVisible="{Binding IsExplorerSidebar}">
                                 <StackPanel Margin="32"
