@@ -419,6 +419,33 @@
                                             </StackPanel>
                                         </StackPanel>
                                     </Border>
+
+                                    <Border Padding="20"
+                                            CornerRadius="8"
+                                            BorderThickness="1"
+                                            BorderBrush="#3A3A3A">
+                                        <StackPanel Spacing="12">
+                                            <TextBlock FontSize="17"
+                                                       FontWeight="SemiBold"
+                                                       Text="CurseForge data source" />
+                                            <TextBlock FontSize="12"
+                                                       Opacity="0.65"
+                                                       TextWrapping="Wrap"
+                                                       Text="The API key is stored only in the local Studio settings. CurseForge project features stay restricted until the data source connects successfully." />
+                                            <TextBlock Text="API key" />
+                                            <TextBox Text="{Binding CurseForgeApiKey}"
+                                                     PasswordChar="●"
+                                                     Watermark="Enter CurseForge API key ..." />
+                                            <StackPanel Orientation="Horizontal"
+                                                        Spacing="10">
+                                                <Button Command="{Binding TestCurseForgeDataSourceCommand}"
+                                                        Content="Test connection" />
+                                                <TextBlock VerticalAlignment="Center"
+                                                           Opacity="0.7"
+                                                           Text="{Binding CurseForgeDataSourceStatus}" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
                                 </StackPanel>
                             </ScrollViewer>
 
@@ -1183,6 +1210,32 @@
                                             CornerRadius="8"
                                             BorderThickness="1"
                                             BorderBrush="#3A3A3A">
+                                        <Grid ColumnDefinitions="*,Auto"
+                                              ColumnSpacing="16">
+                                            <StackPanel Spacing="5">
+                                                <TextBlock FontSize="18"
+                                                           FontWeight="SemiBold"
+                                                           Text="Data source" />
+                                                <TextBlock Opacity="0.7"
+                                                           Text="{Binding CurseForgeDataSourceStatus}" />
+                                                <TextBlock FontSize="12"
+                                                           Opacity="0.6"
+                                                           TextWrapping="Wrap"
+                                                           Text="CurseForge-specific project settings are available only after a successful connection. Configure the API key in Settings." />
+                                            </StackPanel>
+                                            <Button Grid.Column="1"
+                                                    VerticalAlignment="Center"
+                                                    IsEnabled="{Binding IsCurseForgeDataSourceConfigured}"
+                                                    Command="{Binding TestCurseForgeDataSourceCommand}"
+                                                    Content="Connect / Refresh" />
+                                        </Grid>
+                                    </Border>
+
+                                    <Border Padding="18"
+                                            CornerRadius="8"
+                                            BorderThickness="1"
+                                            BorderBrush="#3A3A3A"
+                                            IsEnabled="{Binding CanUseCurseForgeProjectSettings}">
                                         <Grid RowDefinitions="Auto,Auto,Auto"
                                               ColumnDefinitions="180,*"
                                               ColumnSpacing="18"
@@ -1217,7 +1270,8 @@
                                     <Border Padding="18"
                                             CornerRadius="8"
                                             BorderThickness="1"
-                                            BorderBrush="#3A3A3A">
+                                            BorderBrush="#3A3A3A"
+                                            IsEnabled="{Binding CanUseCurseForgeProjectSettings}">
                                         <StackPanel Spacing="14">
                                             <TextBlock FontSize="18"
                                                        FontWeight="SemiBold"
@@ -1230,26 +1284,46 @@
                                                 <TextBlock Grid.Row="0"
                                                            VerticalAlignment="Center"
                                                            FontWeight="SemiBold"
-                                                           Text="Main category ID" />
-                                                <TextBox Grid.Row="0"
-                                                         Grid.Column="1"
-                                                         Text="{Binding CurseForgeMainCategoryId}"
-                                                         Watermark="Not configured" />
+                                                           Text="Main category" />
+                                                <ComboBox Grid.Row="0"
+                                                          Grid.Column="1"
+                                                          ItemsSource="{Binding CurseForgeCategories}"
+                                                          SelectedItem="{Binding SelectedCurseForgeMainCategory}"
+                                                          PlaceholderText="Select a CurseForge category">
+                                                    <ComboBox.ItemTemplate>
+                                                        <DataTemplate x:DataType="vm:CurseForgeCategoryChoice">
+                                                            <TextBlock Text="{Binding Name}" />
+                                                        </DataTemplate>
+                                                    </ComboBox.ItemTemplate>
+                                                </ComboBox>
 
                                                 <TextBlock Grid.Row="1"
                                                            VerticalAlignment="Top"
                                                            Margin="0,7,0,0"
                                                            FontWeight="SemiBold"
-                                                           Text="Additional category IDs" />
+                                                           Text="Additional categories" />
                                                 <StackPanel Grid.Row="1"
                                                             Grid.Column="1"
-                                                            Spacing="4">
-                                                    <TextBox Text="{Binding CurseForgeAdditionalCategoryIds}"
-                                                             Watermark="Comma-separated, up to 4" />
+                                                            Spacing="5">
+                                                    <Border MaxHeight="210"
+                                                            Padding="8"
+                                                            BorderThickness="1"
+                                                            BorderBrush="#303030">
+                                                        <ScrollViewer>
+                                                            <ItemsControl ItemsSource="{Binding CurseForgeCategories}">
+                                                                <ItemsControl.ItemTemplate>
+                                                                    <DataTemplate x:DataType="vm:CurseForgeCategoryChoice">
+                                                                        <CheckBox Margin="0,2"
+                                                                                  Content="{Binding Name}"
+                                                                                  IsChecked="{Binding IsSelected}" />
+                                                                    </DataTemplate>
+                                                                </ItemsControl.ItemTemplate>
+                                                            </ItemsControl>
+                                                        </ScrollViewer>
+                                                    </Border>
                                                     <TextBlock FontSize="11"
                                                                Opacity="0.6"
-                                                               TextWrapping="Wrap"
-                                                               Text="Category selection will become a proper CurseForge list when API integration is added." />
+                                                               Text="Select up to four additional categories." />
                                                 </StackPanel>
 
                                                 <TextBlock Grid.Row="2"
@@ -1267,7 +1341,8 @@
                                     <Border Padding="18"
                                             CornerRadius="8"
                                             BorderThickness="1"
-                                            BorderBrush="#3A3A3A">
+                                            BorderBrush="#3A3A3A"
+                                            IsEnabled="{Binding CanUseCurseForgeProjectSettings}">
                                         <Grid ColumnDefinitions="180,*"
                                               ColumnSpacing="18">
                                             <StackPanel>
@@ -1346,6 +1421,7 @@
                                     </Border>
 
                                     <Button HorizontalAlignment="Left"
+                                            IsEnabled="{Binding CanUseCurseForgeProjectSettings}"
                                             Command="{Binding SaveCurseForgeSettingsCommand}"
                                             Content="Save CurseForge Settings" />
                                 </StackPanel>
