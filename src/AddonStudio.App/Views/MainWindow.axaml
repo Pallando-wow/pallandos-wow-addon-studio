@@ -38,33 +38,51 @@
                     <Button Width="30"
                             Height="30"
                             Padding="0"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center"
                             IsEnabled="{Binding IsSetupComplete}"
                             Command="{Binding OpenCreateAddonCommand}"
-                            Content="＋"
-                            FontSize="17"
-                            ToolTip.Tip="New Addon" />
+                            ToolTip.Tip="New Addon">
+                        <PathIcon Width="16"
+                                  Height="16"
+                                  Data="M7,11 L11,11 L11,7 L13,7 L13,11 L17,11 L17,13 L13,13 L13,17 L11,17 L11,13 L7,13 Z" />
+                    </Button>
                     <Button Width="30"
                             Height="30"
                             Padding="0"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center"
                             IsEnabled="{Binding IsSetupComplete}"
                             Command="{Binding OpenImportAddonCommand}"
-                            Content="⇩"
-                            FontSize="16"
-                            ToolTip.Tip="Import Existing Addon" />
+                            ToolTip.Tip="Import Existing Addon">
+                        <PathIcon Width="16"
+                                  Height="16"
+                                  Data="M11,5 L13,5 L13,13 L16.5,9.5 L18,11 L12,17 L6,11 L7.5,9.5 L11,13 Z M6,18 L18,18 L18,20 L6,20 Z" />
+                    </Button>
                     <Button Width="30"
                             Height="30"
                             Padding="0"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center"
                             IsEnabled="{Binding IsSetupComplete}"
                             Command="{Binding OpenCollectorImportCommand}"
-                            Content="◎"
-                            FontSize="16"
-                            ToolTip.Tip="Import Collector Data" />
+                            ToolTip.Tip="Import Collector Data">
+                        <PathIcon Width="16"
+                                  Height="16"
+                                  Data="F0 M12,4 A8,8 0 1 1 12,20 A8,8 0 1 1 12,4 Z M12,6 A6,6 0 1 0 12,18 A6,6 0 1 0 12,6 Z M12,9 A3,3 0 1 1 12,15 A3,3 0 1 1 12,9 Z" />
+                    </Button>
                 </StackPanel>
 
-                <TextBlock Grid.Column="3"
-                           VerticalAlignment="Center"
-                           Opacity="0.65"
-                           Text="WoW Forever" />
+                <StackPanel Grid.Column="3"
+                            Orientation="Horizontal"
+                            VerticalAlignment="Center"
+                            Spacing="10">
+                    <TextBlock Opacity="0.65"
+                               Text="WoW Forever" />
+                    <TextBlock Opacity="0.45"
+                               Text="{Binding StudioVersion}"
+                               ToolTip.Tip="Studio version" />
+                </StackPanel>
             </Grid>
         </Border>
 

@@ -65,6 +65,9 @@ public partial class MainWindowViewModel(
     PublishingContentService publishingContentService,
     IPallandoCollectorReader pallandoCollectorReader) : ViewModelBase
 {
+    public string StudioVersion =>
+        typeof(MainWindowViewModel).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
+
     [ObservableProperty]
     private StudioSidebar sidebar;
 
