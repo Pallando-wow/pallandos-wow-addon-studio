@@ -10,6 +10,7 @@ using AddonStudio.Data.Projects;
 using AddonStudio.Data.Settings;
 using AddonStudio.Media;
 using AddonStudio.Platforms.CurseForge;
+using AddonStudio.Platforms.Security;
 using AddonStudio.Wow.Collector;
 using AddonStudio.Wow.Projects;
 using AddonStudio.Wow.Toc;
@@ -43,6 +44,9 @@ public partial class App : Avalonia.Application
                 new CurseForgeDataSourceClient(
                     new HttpClient());
 
+            var localSecretStore =
+                new WindowsProtectedSecretStore();
+
             var projectCatalogService =
                 new ProjectCatalogService(
                     manifestReader,
@@ -75,6 +79,7 @@ public partial class App : Avalonia.Application
                     addonProjectService,
                     projectCurseForgeSettingsService,
                     curseForgeDataSourceClient,
+                    localSecretStore,
                     settingsStore,
                     projectCatalogService,
                     projectExplorerService,
