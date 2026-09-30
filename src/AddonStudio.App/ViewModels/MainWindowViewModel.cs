@@ -571,9 +571,22 @@ public partial class MainWindowViewModel(
         PublishingContentLayout.GetFileName(
             PublishingContentKind.Description);
 
+    public bool HasCurrentReleaseVersion =>
+        !string.IsNullOrWhiteSpace(
+            CurrentProjectTocVersion) &&
+        CurrentProjectTocVersion != "—";
+
+    public string CurrentReleaseTitle =>
+        HasCurrentReleaseVersion
+            ? $"Current Release · {CurrentProjectTocVersion}"
+            : "Current Release · version unavailable";
+
     public string PublishingChangelogFileName =>
-        PublishingContentLayout.GetFileName(
-            PublishingContentKind.Changelog);
+        HasCurrentReleaseVersion
+            ? PublishingContentLayout
+                .GetReleaseChangelogRelativePath(
+                    CurrentProjectTocVersion)
+            : "Version unavailable";
 
     public string PublishingSummaryStatus =>
         GetPublishingStatus(
@@ -587,14 +600,30 @@ public partial class MainWindowViewModel(
         GetPublishingStatus(
             PublishingContentKind.Changelog);
 
+    public bool PublishingReleaseDirty =>
+        !string.Equals(
+            PublishingChangelogText,
+            savedPublishingChangelogText,
+            StringComparison.Ordinal);
+
     public string PublishingWorkspaceStatus =>
         PublishingWorkspaceDirty
-            ? "Unsaved changes"
-            : "All changes saved";
+            ? !HasCurrentReleaseVersion &&
+              PublishingReleaseDirty
+                ? "Unsaved changes · release version unavailable"
+                : "Unsaved changes"
+            : publishingChangelogLoadedFromLegacy
+                ? "Legacy changelog ready to migrate"
+                : "All changes saved";
 
     public bool CanSavePublishingWorkspace =>
-        PublishingWorkspaceDirty &&
-        HasCurrentProject;
+        HasCurrentProject &&
+        (PublishingWorkspaceDirty ||
+         publishingChangelogLoadedFromLegacy) &&
+        (!PublishingReleaseDirty ||
+         HasCurrentReleaseVersion) &&
+        (!publishingChangelogLoadedFromLegacy ||
+         HasCurrentReleaseVersion);
 
     public bool CanRevertPublishingWorkspace =>
         PublishingWorkspaceDirty;
