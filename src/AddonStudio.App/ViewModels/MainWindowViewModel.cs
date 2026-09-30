@@ -1692,6 +1692,38 @@ public partial class MainWindowViewModel(
         });
     }
 
+    public async Task RemovePublishingScreenshotAsync(
+        ProjectScreenshotItem screenshot)
+    {
+        ArgumentNullException.ThrowIfNull(
+            screenshot);
+
+        if (CurrentProjectDirectory is null)
+        {
+            StatusMessage =
+                "Open a project before removing screenshots.";
+            return;
+        }
+
+        var fileName =
+            screenshot.FileName;
+
+        await RunOperationAsync(() =>
+        {
+            projectMediaService.RemoveScreenshot(
+                CurrentProjectDirectory,
+                screenshot.FullPath);
+
+            RefreshPublishingMedia();
+            RefreshCurrentProjectTree();
+
+            StatusMessage =
+                $"Screenshot '{fileName}' removed.";
+
+            return Task.CompletedTask;
+        });
+    }
+
     [RelayCommand]
     private void ShowPreviousProjectScreenshot()
     {
