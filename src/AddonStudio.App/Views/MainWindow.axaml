@@ -1164,11 +1164,192 @@
                                 </StackPanel>
                             </ScrollViewer>
 
-                            <Grid IsVisible="{Binding IsCurseForgeSidebar}">
-                                <TextBlock Margin="32"
-                                           Opacity="0.65"
-                                           Text="CurseForge workspace" />
-                            </Grid>
+                            <ScrollViewer IsVisible="{Binding IsCurseForgeSidebar}">
+                                <StackPanel Margin="32"
+                                            MaxWidth="920"
+                                            HorizontalAlignment="Left"
+                                            Spacing="20">
+                                    <StackPanel Spacing="6">
+                                        <TextBlock FontSize="28"
+                                                   FontWeight="SemiBold"
+                                                   Text="CurseForge" />
+                                        <TextBlock FontSize="14"
+                                                   Opacity="0.7"
+                                                   TextWrapping="Wrap"
+                                                   Text="Maintain the local CurseForge project settings for the current addon. Nothing is sent to CurseForge yet." />
+                                    </StackPanel>
+
+                                    <Border Padding="18"
+                                            CornerRadius="8"
+                                            BorderThickness="1"
+                                            BorderBrush="#3A3A3A">
+                                        <Grid RowDefinitions="Auto,Auto,Auto"
+                                              ColumnDefinitions="180,*"
+                                              ColumnSpacing="18"
+                                              RowSpacing="12">
+                                            <TextBlock Grid.Row="0"
+                                                       FontWeight="SemiBold"
+                                                       Text="Project name" />
+                                            <TextBlock Grid.Row="0"
+                                                       Grid.Column="1"
+                                                       Text="{Binding CurseForgeProjectName}" />
+
+                                            <TextBlock Grid.Row="1"
+                                                       VerticalAlignment="Center"
+                                                       FontWeight="SemiBold"
+                                                       Text="Project ID" />
+                                            <TextBox Grid.Row="1"
+                                                     Grid.Column="1"
+                                                     Text="{Binding CurseForgeProjectId}"
+                                                     Watermark="Leave empty until the project is linked" />
+
+                                            <TextBlock Grid.Row="2"
+                                                       VerticalAlignment="Center"
+                                                       FontWeight="SemiBold"
+                                                       Text="Slug" />
+                                            <TextBox Grid.Row="2"
+                                                     Grid.Column="1"
+                                                     Text="{Binding CurseForgeSlug}"
+                                                     Watermark="Leave empty until known" />
+                                        </Grid>
+                                    </Border>
+
+                                    <Border Padding="18"
+                                            CornerRadius="8"
+                                            BorderThickness="1"
+                                            BorderBrush="#3A3A3A">
+                                        <StackPanel Spacing="14">
+                                            <TextBlock FontSize="18"
+                                                       FontWeight="SemiBold"
+                                                       Text="Classification" />
+
+                                            <Grid RowDefinitions="Auto,Auto,Auto"
+                                                  ColumnDefinitions="180,*"
+                                                  ColumnSpacing="18"
+                                                  RowSpacing="12">
+                                                <TextBlock Grid.Row="0"
+                                                           VerticalAlignment="Center"
+                                                           FontWeight="SemiBold"
+                                                           Text="Main category ID" />
+                                                <TextBox Grid.Row="0"
+                                                         Grid.Column="1"
+                                                         Text="{Binding CurseForgeMainCategoryId}"
+                                                         Watermark="Not configured" />
+
+                                                <TextBlock Grid.Row="1"
+                                                           VerticalAlignment="Top"
+                                                           Margin="0,7,0,0"
+                                                           FontWeight="SemiBold"
+                                                           Text="Additional category IDs" />
+                                                <StackPanel Grid.Row="1"
+                                                            Grid.Column="1"
+                                                            Spacing="4">
+                                                    <TextBox Text="{Binding CurseForgeAdditionalCategoryIds}"
+                                                             Watermark="Comma-separated, up to 4" />
+                                                    <TextBlock FontSize="11"
+                                                               Opacity="0.6"
+                                                               TextWrapping="Wrap"
+                                                               Text="Category selection will become a proper CurseForge list when API integration is added." />
+                                                </StackPanel>
+
+                                                <TextBlock Grid.Row="2"
+                                                           VerticalAlignment="Center"
+                                                           FontWeight="SemiBold"
+                                                           Text="Project license" />
+                                                <TextBox Grid.Row="2"
+                                                         Grid.Column="1"
+                                                         Text="{Binding CurseForgeLicense}"
+                                                         Watermark="e.g. GPL-3.0" />
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Padding="18"
+                                            CornerRadius="8"
+                                            BorderThickness="1"
+                                            BorderBrush="#3A3A3A">
+                                        <Grid ColumnDefinitions="180,*"
+                                              ColumnSpacing="18">
+                                            <StackPanel>
+                                                <TextBlock FontSize="18"
+                                                           FontWeight="SemiBold"
+                                                           Text="Distribution" />
+                                                <TextBlock Margin="0,5,0,0"
+                                                           FontSize="11"
+                                                           Opacity="0.6"
+                                                           TextWrapping="Wrap"
+                                                           Text="Controls whether third-party services may distribute project information and files." />
+                                            </StackPanel>
+                                            <ComboBox Grid.Column="1"
+                                                      VerticalAlignment="Center"
+                                                      ItemsSource="{Binding CurseForgeDistributionOptions}"
+                                                      SelectedItem="{Binding CurseForgeDistributionSelection}" />
+                                        </Grid>
+                                    </Border>
+
+                                    <Border Padding="18"
+                                            CornerRadius="8"
+                                            BorderThickness="1"
+                                            BorderBrush="#3A3A3A">
+                                        <StackPanel Spacing="12">
+                                            <TextBlock FontSize="18"
+                                                       FontWeight="SemiBold"
+                                                       Text="Content status" />
+
+                                            <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+                                                  ColumnDefinitions="180,*"
+                                                  ColumnSpacing="18"
+                                                  RowSpacing="8">
+                                                <TextBlock Grid.Row="0"
+                                                           Text="Binding" />
+                                                <TextBlock Grid.Row="0"
+                                                           Grid.Column="1"
+                                                           Text="{Binding CurseForgeBindingStatus}" />
+
+                                                <TextBlock Grid.Row="1"
+                                                           Text="Summary" />
+                                                <TextBlock Grid.Row="1"
+                                                           Grid.Column="1"
+                                                           Text="{Binding PublishingSummaryStatus}" />
+
+                                                <TextBlock Grid.Row="2"
+                                                           Text="Description" />
+                                                <TextBlock Grid.Row="2"
+                                                           Grid.Column="1"
+                                                           Text="{Binding PublishingDescriptionStatus}" />
+
+                                                <TextBlock Grid.Row="3"
+                                                           Text="Changelog" />
+                                                <TextBlock Grid.Row="3"
+                                                           Grid.Column="1"
+                                                           Text="{Binding PublishingChangelogStatus}" />
+
+                                                <TextBlock Grid.Row="4"
+                                                           Text="Logo" />
+                                                <TextBlock Grid.Row="4"
+                                                           Grid.Column="1"
+                                                           Text="{Binding PublishingLogoStatus}" />
+
+                                                <TextBlock Grid.Row="5"
+                                                           Text="Screenshots" />
+                                                <TextBlock Grid.Row="5"
+                                                           Grid.Column="1"
+                                                           Text="{Binding CurseForgeScreenshotsStatus}" />
+
+                                                <TextBlock Grid.Row="6"
+                                                           Text=".toc version" />
+                                                <TextBlock Grid.Row="6"
+                                                           Grid.Column="1"
+                                                           Text="{Binding CurrentProjectTocVersion}" />
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Button HorizontalAlignment="Left"
+                                            Command="{Binding SaveCurseForgeSettingsCommand}"
+                                            Content="Save CurseForge Settings" />
+                                </StackPanel>
+                            </ScrollViewer>
                         </Grid>
                     </TabItem>
 
