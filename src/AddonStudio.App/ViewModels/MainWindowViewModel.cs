@@ -634,6 +634,9 @@ public partial class MainWindowViewModel(
         SelectedProjectScreenshot?.FileName ??
         "No screenshot selected";
 
+    public Bitmap? SelectedProjectScreenshotImage =>
+        SelectedProjectScreenshot?.Image;
+
     public bool IsCurseForgeDataSourceConfigured =>
         !string.IsNullOrWhiteSpace(
             CurseForgeApiKey);
@@ -2144,6 +2147,8 @@ public partial class MainWindowViewModel(
             nameof(CanShowNextProjectScreenshot));
         OnPropertyChanged(
             nameof(SelectedProjectScreenshotName));
+        OnPropertyChanged(
+            nameof(SelectedProjectScreenshotImage));
     }
 
     partial void OnCurseForgeApiKeyChanged(
@@ -2653,6 +2658,7 @@ public partial class MainWindowViewModel(
         OnPropertyChanged(nameof(CanShowPreviousProjectScreenshot));
         OnPropertyChanged(nameof(CanShowNextProjectScreenshot));
         OnPropertyChanged(nameof(SelectedProjectScreenshotName));
+        OnPropertyChanged(nameof(SelectedProjectScreenshotImage));
     }
 
     private void RaisePublishingProperties()
