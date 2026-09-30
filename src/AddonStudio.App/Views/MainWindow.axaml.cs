@@ -139,6 +139,101 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void RemovePublishingScreenshot_Click(
+        object? sender,
+        RoutedEventArgs e)
+    {
+        if (sender is not Button
+            {
+                DataContext: ProjectScreenshotItem screenshot
+            } ||
+            ViewModel is null)
+        {
+            return;
+        }
+
+        if (!await ConfirmRemoveScreenshotAsync(
+                screenshot.FileName))
+        {
+            return;
+        }
+
+        await ViewModel.RemovePublishingScreenshotAsync(
+            screenshot);
+    }
+
+    private async Task<bool> ConfirmRemoveScreenshotAsync(
+        string fileName)
+    {
+        var cancelButton = new Button
+        {
+            Content = "Cancel",
+            MinWidth = 90
+        };
+
+        var removeButton = new Button
+        {
+            Content = "Remove Screenshot",
+            MinWidth = 140
+        };
+
+        var dialog = new Window
+        {
+            Title = "Remove screenshot",
+            Width = 460,
+            Height = 205,
+            CanResize = false,
+            ShowInTaskbar = false,
+            WindowStartupLocation =
+                WindowStartupLocation.CenterOwner
+        };
+
+        cancelButton.Click +=
+            (_, _) => dialog.Close(false);
+
+        removeButton.Click +=
+            (_, _) => dialog.Close(true);
+
+        dialog.Content = new Border
+        {
+            Padding = new Thickness(20),
+            Child = new StackPanel
+            {
+                Spacing = 14,
+                Children =
+                {
+                    new TextBlock
+                    {
+                        Text = "Remove screenshot?",
+                        FontSize = 20,
+                        FontWeight = FontWeight.SemiBold
+                    },
+                    new TextBlock
+                    {
+                        Text =
+                            $"Remove '{fileName}' from this project?",
+                        TextWrapping = TextWrapping.Wrap
+                    },
+                    new StackPanel
+                    {
+                        Orientation = Orientation.Horizontal,
+                        HorizontalAlignment =
+                            HorizontalAlignment.Right,
+                        Spacing = 8,
+                        Children =
+                        {
+                            cancelButton,
+                            removeButton
+                        }
+                    }
+                }
+            }
+        };
+
+        return await dialog.ShowDialog<bool>(
+            this);
+    }
+
     private async void SaveSettings_Click(
         object? sender,
         RoutedEventArgs e)
