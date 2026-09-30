@@ -1503,6 +1503,27 @@ public partial class MainWindowViewModel(
                         category.Id ==
                         project.PrimaryCategoryId);
 
+            if (remoteMainCategory is null)
+            {
+                var matchingRemoteCategories =
+                    project.CategoryIds
+                        .Select(id =>
+                            CurseForgeCategories
+                                .FirstOrDefault(
+                                    category =>
+                                        category.Id == id))
+                        .OfType<CurseForgeCategoryChoice>()
+                        .DistinctBy(category =>
+                            category.Id)
+                        .ToArray();
+
+                if (matchingRemoteCategories.Length == 1)
+                {
+                    remoteMainCategory =
+                        matchingRemoteCategories[0];
+                }
+            }
+
             if (remoteMainCategory is not null)
             {
                 CurseForgeMainCategoryId =
