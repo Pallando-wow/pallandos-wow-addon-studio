@@ -2,9 +2,12 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Layout;
+using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.VisualTree;
 using AddonStudio.App.ViewModels;
+using AddonStudio.Core.Publishing;
 
 namespace AddonStudio.App.Views;
 
@@ -96,6 +99,33 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void ChoosePublishingLogo_Click(
+        object? sender,
+        RoutedEventArgs e)
+    {
+        var path = await PickLogoFileAsync(
+            "Select project logo");
+
+        if (path is not null && ViewModel is not null)
+        {
+            await ViewModel.SetPublishingLogoAsync(path);
+        }
+    }
+
+    private async void AddPublishingScreenshots_Click(
+        object? sender,
+        RoutedEventArgs e)
+    {
+        var paths = await PickScreenshotFilesAsync(
+            "Select project screenshots");
+
+        if (paths.Count > 0 && ViewModel is not null)
+        {
+            await ViewModel.AddPublishingScreenshotsAsync(
+                paths);
+        }
+    }
+
     private async void SaveSettings_Click(
         object? sender,
         RoutedEventArgs e)
@@ -167,10 +197,144 @@ public partial class MainWindow : Window
         object? sender,
         TappedEventArgs e)
     {
-        if (ViewModel is not null)
+        if (ViewModel is null)
+        {
+            return;
+        }
+
+        if (!ViewModel.HasSelectedMarkdownFile)
         {
             await ViewModel.OpenSelectedProjectTreeItemAsync();
+            return;
         }
+
+        var discardUnsavedChanges =
+            !ViewModel.IsMarkdownDirty ||
+            await ConfirmDiscardMarkdownChangesAsync();
+
+        if (!discardUnsavedChanges)
+        {
+            return;
+        }
+
+        await ViewModel.OpenSelectedProjectTreeItemAsync(
+            discardUnsavedChanges: true);
+    }
+
+    private async void OpenPublishingSummary_Click(
+        object? sender,
+        RoutedEventArgs e) =>
+        await OpenPublishingContentWithConfirmationAsync(
+            PublishingContentKind.Summary);
+
+    private async void OpenPublishingDescription_Click(
+        object? sender,
+        RoutedEventArgs e) =>
+        await OpenPublishingContentWithConfirmationAsync(
+            PublishingContentKind.Description);
+
+    private async void OpenPublishingChangelog_Click(
+        object? sender,
+        RoutedEventArgs e) =>
+        await OpenPublishingContentWithConfirmationAsync(
+            PublishingContentKind.Changelog);
+
+    private async Task OpenPublishingContentWithConfirmationAsync(
+        PublishingContentKind kind)
+    {
+        if (ViewModel is null)
+        {
+            return;
+        }
+
+        var discardUnsavedChanges =
+            !ViewModel.IsMarkdownDirty ||
+            await ConfirmDiscardMarkdownChangesAsync();
+
+        if (!discardUnsavedChanges)
+        {
+            return;
+        }
+
+        await ViewModel.OpenPublishingContentFromUiAsync(
+            kind,
+            discardUnsavedChanges: true);
+    }
+
+    private async Task<bool> ConfirmDiscardMarkdownChangesAsync()
+    {
+        if (ViewModel is null)
+        {
+            return false;
+        }
+
+        var cancelButton = new Button
+        {
+            Content = "Cancel",
+            MinWidth = 90
+        };
+
+        var discardButton = new Button
+        {
+            Content = "Discard Changes",
+            MinWidth = 130
+        };
+
+        var dialog = new Window
+        {
+            Title = "Unsaved changes",
+            Width = 460,
+            Height = 205,
+            CanResize = false,
+            ShowInTaskbar = false,
+            WindowStartupLocation =
+                WindowStartupLocation.CenterOwner
+        };
+
+        cancelButton.Click +=
+            (_, _) => dialog.Close(false);
+
+        discardButton.Click +=
+            (_, _) => dialog.Close(true);
+
+        dialog.Content = new Border
+        {
+            Padding = new Thickness(20),
+            Child = new StackPanel
+            {
+                Spacing = 14,
+                Children =
+                {
+                    new TextBlock
+                    {
+                        Text = "Unsaved changes",
+                        FontSize = 20,
+                        FontWeight = FontWeight.SemiBold
+                    },
+                    new TextBlock
+                    {
+                        Text =
+                            $"'{ViewModel.MarkdownDocumentName}' contains unsaved changes. " +
+                            "Discard them and open the selected file?",
+                        TextWrapping = TextWrapping.Wrap
+                    },
+                    new StackPanel
+                    {
+                        Orientation = Orientation.Horizontal,
+                        HorizontalAlignment =
+                            HorizontalAlignment.Right,
+                        Spacing = 8,
+                        Children =
+                        {
+                            cancelButton,
+                            discardButton
+                        }
+                    }
+                }
+            }
+        };
+
+        return await dialog.ShowDialog<bool>(this);
     }
 
     private bool syncingMarkdownScroll;
@@ -701,6 +865,61 @@ public partial class MainWindow : Window
         return files.Count == 0
             ? null
             : files[0].TryGetLocalPath();
+    }
+
+    private async Task<string?> PickLogoFileAsync(
+        string title)
+    {
+        var files = await StorageProvider.OpenFilePickerAsync(
+            new FilePickerOpenOptions
+            {
+                Title = title,
+                AllowMultiple = false,
+                FileTypeFilter =
+                [
+                    new FilePickerFileType(
+                        "PNG image")
+                    {
+                        Patterns = ["*.png"]
+                    }
+                ]
+            });
+
+        return files.Count == 0
+            ? null
+            : files[0].TryGetLocalPath();
+    }
+
+    private async Task<IReadOnlyList<string>> PickScreenshotFilesAsync(
+        string title)
+    {
+        var files = await StorageProvider.OpenFilePickerAsync(
+            new FilePickerOpenOptions
+            {
+                Title = title,
+                AllowMultiple = true,
+                FileTypeFilter =
+                [
+                    new FilePickerFileType(
+                        "Images")
+                    {
+                        Patterns =
+                        [
+                            "*.png",
+                            "*.jpg",
+                            "*.jpeg"
+                        ]
+                    }
+                ]
+            });
+
+        return files
+            .Select(file =>
+                file.TryGetLocalPath())
+            .Where(path =>
+                !string.IsNullOrWhiteSpace(path))
+            .Select(path => path!)
+            .ToArray();
     }
 
     private async Task<string?> PickFolderAsync(string title)

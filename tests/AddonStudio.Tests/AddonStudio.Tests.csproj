@@ -24,6 +24,7 @@
     <ProjectReference Include="..\..\src\AddonStudio.Data\AddonStudio.Data.csproj" />
     <ProjectReference Include="..\..\src\AddonStudio.Wow\AddonStudio.Wow.csproj" />
     <ProjectReference Include="..\..\src\AddonStudio.Git\AddonStudio.Git.csproj" />
+    <ProjectReference Include="..\..\src\AddonStudio.Media\AddonStudio.Media.csproj" />
     <ProjectReference Include="..\..\src\AddonStudio.Packaging\AddonStudio.Packaging.csproj" />
   </ItemGroup>
 

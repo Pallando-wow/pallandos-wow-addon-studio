@@ -6,6 +6,7 @@ using AddonStudio.Application.Settings;
 using AddonStudio.Application.WowData;
 using AddonStudio.Core.Projects;
 using AddonStudio.Core.Publishing;
+using AddonStudio.Media;
 using AddonStudio.Wow.Toc;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -15,6 +16,7 @@ namespace AddonStudio.App.ViewModels;
 public enum StudioSidebar
 {
     Start,
+    ProjectOverview,
     Explorer,
     Components,
     Git,
@@ -65,6 +67,7 @@ public partial class MainWindowViewModel(
     ProjectExplorerService projectExplorerService,
     MarkdownDocumentService markdownDocumentService,
     PublishingContentService publishingContentService,
+    ProjectMediaService projectMediaService,
     TocDocumentReader tocDocumentReader,
     IPallandoCollectorReader pallandoCollectorReader) : ViewModelBase
 {
@@ -188,6 +191,11 @@ public partial class MainWindowViewModel(
     private ProjectTreeItem? selectedProjectTreeItem;
 
     [ObservableProperty]
+    private string publishingLogoFileName = string.Empty;
+
+    public ObservableCollection<string> PublishingScreenshots { get; } = [];
+
+    [ObservableProperty]
     private string? markdownDocumentPath;
 
     [ObservableProperty]
@@ -213,6 +221,7 @@ public partial class MainWindowViewModel(
         ProjectExplorerService projectExplorerService,
         MarkdownDocumentService markdownDocumentService,
         PublishingContentService publishingContentService,
+        ProjectMediaService projectMediaService,
         TocDocumentReader tocDocumentReader,
         IPallandoCollectorReader pallandoCollectorReader,
         bool initialize = true)
@@ -223,6 +232,7 @@ public partial class MainWindowViewModel(
             projectExplorerService,
             markdownDocumentService,
             publishingContentService,
+            projectMediaService,
             tocDocumentReader,
             pallandoCollectorReader)
     {
@@ -411,6 +421,88 @@ public partial class MainWindowViewModel(
         GetPublishingStatus(
             PublishingContentKind.Changelog);
 
+    public string PublishingSummaryActionText =>
+        GetPublishingActionText(
+            PublishingContentKind.Summary,
+            "Summary");
+
+    public string PublishingDescriptionActionText =>
+        GetPublishingActionText(
+            PublishingContentKind.Description,
+            "Description");
+
+    public string PublishingChangelogActionText =>
+        GetPublishingActionText(
+            PublishingContentKind.Changelog,
+            "Changelog");
+
+    public bool HasPublishingLogo =>
+        !string.IsNullOrWhiteSpace(PublishingLogoFileName);
+
+    public string PublishingLogoStatus =>
+        HasPublishingLogo
+            ? PublishingLogoFileName
+            : "Not added";
+
+    public string PublishingLogoActionText =>
+        HasPublishingLogo
+            ? "Replace Logo"
+            : "Add Logo";
+
+    public bool HasPublishingScreenshots =>
+        PublishingScreenshots.Count > 0;
+
+    public string PublishingScreenshotsStatus =>
+        HasPublishingScreenshots
+            ? $"{PublishingScreenshots.Count} screenshot(s)"
+            : "No screenshots";
+
+    public bool IsProjectSidebar =>
+        Sidebar is
+            StudioSidebar.ProjectOverview or
+            StudioSidebar.Explorer or
+            StudioSidebar.Git or
+            StudioSidebar.Publishing or
+            StudioSidebar.CurseForge;
+
+    public bool IsProjectOverviewSidebar =>
+        Sidebar == StudioSidebar.ProjectOverview;
+
+    public bool HasSelectedProjectTreeItem =>
+        SelectedProjectTreeItem is not null;
+
+    public bool HasNoSelectedProjectTreeItem =>
+        SelectedProjectTreeItem is null;
+
+    public string SelectedProjectTreeItemName =>
+        SelectedProjectTreeItem?.Name ?? string.Empty;
+
+    public string SelectedProjectTreeItemPath =>
+        SelectedProjectTreeItem?.FullPath ?? string.Empty;
+
+    public bool IsSelectedReleaseFolder =>
+        IsSelectedProjectDirectory(
+            ProjectLayout.ReleaseDirectoryName);
+
+    public bool IsSelectedLogoFolder =>
+        IsSelectedProjectDirectory(
+            ProjectLayout.MediaDirectoryName,
+            ProjectLayout.LogoDirectoryName);
+
+    public bool IsSelectedScreenshotsFolder =>
+        IsSelectedProjectDirectory(
+            ProjectLayout.MediaDirectoryName,
+            ProjectLayout.ScreenshotsDirectoryName);
+
+    public bool HasSelectedSpecialProjectFolder =>
+        IsSelectedReleaseFolder ||
+        IsSelectedLogoFolder ||
+        IsSelectedScreenshotsFolder;
+
+    public bool HasSelectedGenericProjectTreeItem =>
+        HasSelectedProjectTreeItem &&
+        !HasSelectedSpecialProjectFolder;
+
     public bool IsStartSidebar => Sidebar == StudioSidebar.Start;
     public bool IsExplorerSidebar => Sidebar == StudioSidebar.Explorer;
     public bool IsComponentsSidebar => Sidebar == StudioSidebar.Components;
@@ -422,7 +514,8 @@ public partial class MainWindowViewModel(
     public string WorkspaceTitle => Sidebar switch
     {
         StudioSidebar.Start => "Start",
-        StudioSidebar.Explorer => "Explorer",
+        StudioSidebar.ProjectOverview => CurrentProjectName ?? "Project",
+        StudioSidebar.Explorer => "Files",
         StudioSidebar.Components => "Components",
         StudioSidebar.Git => "Git",
         StudioSidebar.Publishing => "Publishing",
@@ -454,9 +547,23 @@ public partial class MainWindowViewModel(
     }
 
     [RelayCommand]
+    private void ShowProjectOverview()
+    {
+        if (SetupRequired ||
+            !HasCurrentProject)
+        {
+            return;
+        }
+
+        Sidebar = StudioSidebar.ProjectOverview;
+        WorkspaceTabIndex = 0;
+    }
+
+    [RelayCommand]
     private void ShowExplorer()
     {
-        if (SetupRequired)
+        if (SetupRequired ||
+            !HasCurrentProject)
         {
             return;
         }
@@ -480,7 +587,8 @@ public partial class MainWindowViewModel(
     [RelayCommand]
     private void ShowGit()
     {
-        if (SetupRequired)
+        if (SetupRequired ||
+            !HasCurrentProject)
         {
             return;
         }
@@ -492,20 +600,23 @@ public partial class MainWindowViewModel(
     [RelayCommand]
     private void ShowPublishing()
     {
-        if (SetupRequired)
+        if (SetupRequired ||
+            !HasCurrentProject)
         {
             return;
         }
 
         Sidebar = StudioSidebar.Publishing;
         WorkspaceTabIndex = 0;
+        RefreshPublishingMedia();
         RaisePublishingProperties();
     }
 
     [RelayCommand]
     private void ShowCurseForge()
     {
-        if (SetupRequired)
+        if (SetupRequired ||
+            !HasCurrentProject)
         {
             return;
         }
@@ -711,7 +822,8 @@ public partial class MainWindowViewModel(
         await OpenProjectAsync(SelectedProject);
     }
 
-    public async Task OpenSelectedProjectTreeItemAsync()
+    public async Task OpenSelectedProjectTreeItemAsync(
+        bool discardUnsavedChanges = false)
     {
         if (CurrentProjectDirectory is null ||
             SelectedProjectTreeItem is null)
@@ -732,13 +844,10 @@ public partial class MainWindowViewModel(
         }
 
         if (IsMarkdownDirty &&
-            !string.Equals(
-                MarkdownDocumentPath,
-                SelectedProjectTreeItem.FullPath,
-                StringComparison.OrdinalIgnoreCase))
+            !discardUnsavedChanges)
         {
             StatusMessage =
-                "Save or revert the current Markdown document before opening another file.";
+                "The current Markdown document has unsaved changes.";
             return;
         }
 
@@ -776,6 +885,67 @@ public partial class MainWindowViewModel(
     private Task OpenPublishingChangelogAsync() =>
         OpenPublishingContentAsync(
             PublishingContentKind.Changelog);
+
+    public Task OpenPublishingContentFromUiAsync(
+        PublishingContentKind kind,
+        bool discardUnsavedChanges = false) =>
+        OpenPublishingContentAsync(
+            kind,
+            discardUnsavedChanges);
+
+    public async Task SetPublishingLogoAsync(
+        string sourceFilePath)
+    {
+        if (CurrentProjectDirectory is null)
+        {
+            StatusMessage =
+                "Open a project before adding a logo.";
+            return;
+        }
+
+        await RunOperationAsync(async () =>
+        {
+            await projectMediaService.SetLogoAsync(
+                CurrentProjectDirectory,
+                sourceFilePath);
+
+            RefreshPublishingMedia();
+            RefreshCurrentProjectTree();
+
+            StatusMessage =
+                "Project logo added.";
+        });
+    }
+
+    public async Task AddPublishingScreenshotsAsync(
+        IReadOnlyList<string> sourceFilePaths)
+    {
+        if (CurrentProjectDirectory is null)
+        {
+            StatusMessage =
+                "Open a project before adding screenshots.";
+            return;
+        }
+
+        if (sourceFilePaths.Count == 0)
+        {
+            return;
+        }
+
+        await RunOperationAsync(async () =>
+        {
+            var added =
+                await projectMediaService.AddScreenshotsAsync(
+                    CurrentProjectDirectory,
+                    sourceFilePaths);
+
+            RefreshPublishingMedia();
+            RefreshCurrentProjectTree();
+
+            StatusMessage =
+                $"{added.Count} screenshot(s) added.";
+        });
+    }
 
     [RelayCommand]
     private void ShowMarkdownEditor() =>
@@ -904,7 +1074,8 @@ public partial class MainWindowViewModel(
         }
 
         SelectedProject = project;
-        Sidebar = StudioSidebar.Explorer;
+        SelectedProjectTreeItem = null;
+        Sidebar = StudioSidebar.ProjectOverview;
         WorkspaceTabIndex = 0;
         StatusMessage = $"Project '{project.Name}' opened.";
 
@@ -1088,6 +1259,8 @@ public partial class MainWindowViewModel(
     partial void OnSidebarChanged(StudioSidebar value)
     {
         OnPropertyChanged(nameof(IsStartSidebar));
+        OnPropertyChanged(nameof(IsProjectSidebar));
+        OnPropertyChanged(nameof(IsProjectOverviewSidebar));
         OnPropertyChanged(nameof(IsExplorerSidebar));
         OnPropertyChanged(nameof(IsComponentsSidebar));
         OnPropertyChanged(nameof(IsGitSidebar));
@@ -1299,8 +1472,19 @@ public partial class MainWindowViewModel(
     }
 
     partial void OnSelectedProjectTreeItemChanged(
-        ProjectTreeItem? value) =>
+        ProjectTreeItem? value)
+    {
         OnPropertyChanged(nameof(HasSelectedMarkdownFile));
+        OnPropertyChanged(nameof(HasSelectedProjectTreeItem));
+        OnPropertyChanged(nameof(HasNoSelectedProjectTreeItem));
+        OnPropertyChanged(nameof(SelectedProjectTreeItemName));
+        OnPropertyChanged(nameof(SelectedProjectTreeItemPath));
+        OnPropertyChanged(nameof(IsSelectedReleaseFolder));
+        OnPropertyChanged(nameof(IsSelectedLogoFolder));
+        OnPropertyChanged(nameof(IsSelectedScreenshotsFolder));
+        OnPropertyChanged(nameof(HasSelectedSpecialProjectFolder));
+        OnPropertyChanged(nameof(HasSelectedGenericProjectTreeItem));
+    }
 
     partial void OnMarkdownDocumentPathChanged(
         string? value)
@@ -1330,9 +1514,20 @@ public partial class MainWindowViewModel(
     partial void OnHasMarkdownDocumentChanged(bool value) =>
         OnPropertyChanged(nameof(CanCloseMarkdownDocument));
 
+    partial void OnPublishingLogoFileNameChanged(
+        string value)
+    {
+        OnPropertyChanged(nameof(HasPublishingLogo));
+        OnPropertyChanged(nameof(PublishingLogoStatus));
+        OnPropertyChanged(nameof(PublishingLogoActionText));
+    }
+
     partial void OnCurrentProjectDirectoryChanged(
-        string? value) =>
+        string? value)
+    {
+        RefreshPublishingMedia();
         RaisePublishingProperties();
+    }
 
     partial void OnMarkdownEditorModeChanged(
         MarkdownEditorMode value)
@@ -1347,6 +1542,36 @@ public partial class MainWindowViewModel(
     {
         OnPropertyChanged(nameof(HasCurrentProject));
         OnPropertyChanged(nameof(HasNoCurrentProject));
+        OnPropertyChanged(nameof(WorkspaceTitle));
+    }
+
+    private bool IsSelectedProjectDirectory(
+        params string[] relativeSegments)
+    {
+        if (CurrentProjectDirectory is null ||
+            SelectedProjectTreeItem is not
+            {
+                IsDirectory: true
+            } item)
+        {
+            return false;
+        }
+
+        var expectedPath =
+            relativeSegments.Aggregate(
+                CurrentProjectDirectory,
+                Path.Combine);
+
+        return string.Equals(
+            Path.GetFullPath(item.FullPath)
+                .TrimEnd(
+                    Path.DirectorySeparatorChar,
+                    Path.AltDirectorySeparatorChar),
+            Path.GetFullPath(expectedPath)
+                .TrimEnd(
+                    Path.DirectorySeparatorChar,
+                    Path.AltDirectorySeparatorChar),
+            StringComparison.OrdinalIgnoreCase);
     }
 
     private void ClearCollectorImport()
@@ -1391,7 +1616,8 @@ public partial class MainWindowViewModel(
     }
 
     private async Task OpenPublishingContentAsync(
-        PublishingContentKind kind)
+        PublishingContentKind kind,
+        bool discardUnsavedChanges = false)
     {
         if (CurrentProjectDirectory is null)
         {
@@ -1405,13 +1631,10 @@ public partial class MainWindowViewModel(
             kind);
 
         if (IsMarkdownDirty &&
-            !string.Equals(
-                MarkdownDocumentPath,
-                file.Path,
-                StringComparison.OrdinalIgnoreCase))
+            !discardUnsavedChanges)
         {
             StatusMessage =
-                "Save or revert the current Markdown document before opening another file.";
+                "The current Markdown document has unsaved changes.";
             return;
         }
 
@@ -1461,6 +1684,62 @@ public partial class MainWindowViewModel(
         }
     }
 
+    private string GetPublishingActionText(
+        PublishingContentKind kind,
+        string label) =>
+        GetPublishingStatus(kind) == "Created"
+            ? $"Edit {label}"
+            : $"Create {label}";
+
+    private void RefreshPublishingMedia()
+    {
+        PublishingLogoFileName = string.Empty;
+        PublishingScreenshots.Clear();
+
+        if (CurrentProjectDirectory is null)
+        {
+            RaisePublishingMediaProperties();
+            return;
+        }
+
+        try
+        {
+            var snapshot =
+                projectMediaService.GetSnapshot(
+                    CurrentProjectDirectory);
+
+            PublishingLogoFileName =
+                snapshot.LogoFilePath is null
+                    ? string.Empty
+                    : Path.GetFileName(
+                        snapshot.LogoFilePath);
+
+            foreach (var screenshotPath in
+                     snapshot.ScreenshotFilePaths)
+            {
+                PublishingScreenshots.Add(
+                    Path.GetFileName(
+                        screenshotPath));
+            }
+        }
+        catch
+        {
+            PublishingLogoFileName = string.Empty;
+            PublishingScreenshots.Clear();
+        }
+
+        RaisePublishingMediaProperties();
+    }
+
+    private void RaisePublishingMediaProperties()
+    {
+        OnPropertyChanged(nameof(HasPublishingLogo));
+        OnPropertyChanged(nameof(PublishingLogoStatus));
+        OnPropertyChanged(nameof(PublishingLogoActionText));
+        OnPropertyChanged(nameof(HasPublishingScreenshots));
+        OnPropertyChanged(nameof(PublishingScreenshotsStatus));
+    }
+
     private void RaisePublishingProperties()
     {
         OnPropertyChanged(nameof(PublishingSummaryFileName));
@@ -1469,6 +1748,10 @@ public partial class MainWindowViewModel(
         OnPropertyChanged(nameof(PublishingSummaryStatus));
         OnPropertyChanged(nameof(PublishingDescriptionStatus));
         OnPropertyChanged(nameof(PublishingChangelogStatus));
+        OnPropertyChanged(nameof(PublishingSummaryActionText));
+        OnPropertyChanged(nameof(PublishingDescriptionActionText));
+        OnPropertyChanged(nameof(PublishingChangelogActionText));
+        RaisePublishingMediaProperties();
     }
 
     private void RefreshCurrentProjectTree()
@@ -1485,6 +1768,9 @@ public partial class MainWindowViewModel(
             return;
         }
 
+        var selectedPath =
+            SelectedProjectTreeItem?.FullPath;
+
         CurrentProjectTree.Clear();
 
         foreach (var item in projectExplorerService.BuildTree(project))
@@ -1492,7 +1778,40 @@ public partial class MainWindowViewModel(
             CurrentProjectTree.Add(item);
         }
 
-        SelectedProjectTreeItem = null;
+        SelectedProjectTreeItem =
+            string.IsNullOrWhiteSpace(selectedPath)
+                ? null
+                : FindProjectTreeItem(
+                    CurrentProjectTree,
+                    selectedPath);
+    }
+
+    private static ProjectTreeItem? FindProjectTreeItem(
+        IEnumerable<ProjectTreeItem> items,
+        string fullPath)
+    {
+        foreach (var item in items)
+        {
+            if (string.Equals(
+                    Path.GetFullPath(item.FullPath),
+                    Path.GetFullPath(fullPath),
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return item;
+            }
+
+            var child =
+                FindProjectTreeItem(
+                    item.Children,
+                    fullPath);
+
+            if (child is not null)
+            {
+                return child;
+            }
+        }
+
+        return null;
     }
 
     private async Task RefreshProjectsCoreAsync()
