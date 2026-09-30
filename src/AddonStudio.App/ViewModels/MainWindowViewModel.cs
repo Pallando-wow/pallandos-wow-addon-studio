@@ -1765,6 +1765,9 @@ public partial class MainWindowViewModel(
             return;
         }
 
+        var selectedPath =
+            SelectedProjectTreeItem?.FullPath;
+
         CurrentProjectTree.Clear();
 
         foreach (var item in projectExplorerService.BuildTree(project))
@@ -1772,7 +1775,40 @@ public partial class MainWindowViewModel(
             CurrentProjectTree.Add(item);
         }
 
-        SelectedProjectTreeItem = null;
+        SelectedProjectTreeItem =
+            string.IsNullOrWhiteSpace(selectedPath)
+                ? null
+                : FindProjectTreeItem(
+                    CurrentProjectTree,
+                    selectedPath);
+    }
+
+    private static ProjectTreeItem? FindProjectTreeItem(
+        IEnumerable<ProjectTreeItem> items,
+        string fullPath)
+    {
+        foreach (var item in items)
+        {
+            if (string.Equals(
+                    Path.GetFullPath(item.FullPath),
+                    Path.GetFullPath(fullPath),
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return item;
+            }
+
+            var child =
+                FindProjectTreeItem(
+                    item.Children,
+                    fullPath);
+
+            if (child is not null)
+            {
+                return child;
+            }
+        }
+
+        return null;
     }
 
     private async Task RefreshProjectsCoreAsync()
