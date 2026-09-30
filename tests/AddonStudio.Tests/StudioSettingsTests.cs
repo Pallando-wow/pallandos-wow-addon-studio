@@ -34,8 +34,14 @@ public sealed class StudioSettingsTests
         Assert.Equal(projectRoot, loaded.ProjectRoot);
         Assert.Equal(wowPath, loaded.WowForeverAddOnsPath);
         Assert.Equal(savedVariablesPath, loaded.SavedVariablesPath);
-        Assert.Equal("test-api-key", loaded.CurseForgeApiKey);
+        Assert.Empty(loaded.CurseForgeApiKey);
         Assert.True(StudioSettingsValidator.IsComplete(loaded));
+
+        var json = File.ReadAllText(settingsPath);
+        Assert.DoesNotContain(
+            "test-api-key",
+            json,
+            StringComparison.Ordinal);
     }
 
     [Fact]
@@ -91,6 +97,38 @@ public sealed class StudioSettingsTests
         Assert.Contains(
             "WoW SavedVariables path",
             issues[0]);
+    }
+
+    [Fact]
+    public void Store_LoadsLegacyPlaintextApiKeyForMigration()
+    {
+        using var temp = new TempDirectory();
+
+        var settingsPath =
+            Path.Combine(
+                temp.Path,
+                "settings.json");
+
+        File.WriteAllText(
+            settingsPath,
+            """
+            {
+              "projectRoot": "C:\\Projects",
+              "wowForeverAddOnsPath": "C:\\WoW\\AddOns",
+              "savedVariablesPath": "",
+              "curseForgeApiKey": "legacy-key"
+            }
+            """);
+
+        var store =
+            new JsonStudioSettingsStore(
+                settingsPath);
+
+        var loaded = store.Load();
+
+        Assert.Equal(
+            "legacy-key",
+            loaded.CurseForgeApiKey);
     }
 
     [Fact]
