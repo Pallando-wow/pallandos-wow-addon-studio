@@ -1841,7 +1841,7 @@
                                                         Content="Load Project" />
                                             </Grid>
 
-                                            <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+                                            <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
                                                   ColumnDefinitions="180,*"
                                                   ColumnSpacing="18"
                                                   RowSpacing="10">
@@ -1889,8 +1889,14 @@
                                                            Text="{Binding CurseForgeRemoteProjectStatus}" />
 
                                                 <TextBlock Grid.Row="6"
-                                                           Text="Categories" />
+                                                           Text="Remote main category" />
                                                 <TextBlock Grid.Row="6"
+                                                           Grid.Column="1"
+                                                           Text="{Binding CurseForgeRemoteMainCategory}" />
+
+                                                <TextBlock Grid.Row="7"
+                                                           Text="Categories" />
+                                                <TextBlock Grid.Row="7"
                                                            Grid.Column="1"
                                                            Text="{Binding CurseForgeCategoryComparisonStatus}" />
                                             </Grid>
