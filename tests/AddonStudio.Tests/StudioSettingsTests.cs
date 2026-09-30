@@ -22,13 +22,15 @@ public sealed class StudioSettingsTests
             new StudioSettings
             {
                 ProjectRoot = projectRoot,
-                WowForeverAddOnsPath = wowPath
+                WowForeverAddOnsPath = wowPath,
+                CurseForgeApiKey = "test-api-key"
             });
 
         var loaded = store.Load();
 
         Assert.Equal(projectRoot, loaded.ProjectRoot);
         Assert.Equal(wowPath, loaded.WowForeverAddOnsPath);
+        Assert.Equal("test-api-key", loaded.CurseForgeApiKey);
         Assert.True(StudioSettingsValidator.IsComplete(loaded));
     }
 
