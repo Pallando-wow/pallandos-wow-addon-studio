@@ -686,6 +686,99 @@
                                                         Content="Open Project" />
                                             </Grid>
                                         </Border>
+
+                                        <Border IsVisible="{Binding HasSelectedProjectTocMetadata}"
+                                                Padding="20"
+                                                CornerRadius="8"
+                                                BorderThickness="1"
+                                                BorderBrush="#3A3A3A">
+                                            <StackPanel Spacing="12">
+                                                <TextBlock FontSize="17"
+                                                           FontWeight="SemiBold"
+                                                           Text="Addon metadata (.toc)" />
+
+                                                <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+                                                      ColumnDefinitions="180,*"
+                                                      ColumnSpacing="18"
+                                                      RowSpacing="8">
+                                                    <TextBlock Grid.Row="0"
+                                                               FontWeight="SemiBold"
+                                                               Text="TOC file" />
+                                                    <TextBlock Grid.Row="0"
+                                                               Grid.Column="1"
+                                                               Text="{Binding SelectedProjectTocFile}" />
+
+                                                    <TextBlock Grid.Row="1"
+                                                               FontWeight="SemiBold"
+                                                               Text="Title" />
+                                                    <TextBlock Grid.Row="1"
+                                                               Grid.Column="1"
+                                                               TextWrapping="Wrap"
+                                                               Text="{Binding SelectedProjectTocTitle}" />
+
+                                                    <TextBlock Grid.Row="2"
+                                                               FontWeight="SemiBold"
+                                                               Text="Version" />
+                                                    <TextBlock Grid.Row="2"
+                                                               Grid.Column="1"
+                                                               Text="{Binding SelectedProjectTocVersion}" />
+
+                                                    <TextBlock Grid.Row="3"
+                                                               FontWeight="SemiBold"
+                                                               Text="Author" />
+                                                    <TextBlock Grid.Row="3"
+                                                               Grid.Column="1"
+                                                               Text="{Binding SelectedProjectTocAuthor}" />
+
+                                                    <TextBlock Grid.Row="4"
+                                                               FontWeight="SemiBold"
+                                                               Text="Interface" />
+                                                    <TextBlock Grid.Row="4"
+                                                               Grid.Column="1"
+                                                               TextWrapping="Wrap"
+                                                               Text="{Binding SelectedProjectTocInterfaces}" />
+
+                                                    <TextBlock Grid.Row="5"
+                                                               FontWeight="SemiBold"
+                                                               Text="Notes" />
+                                                    <TextBlock Grid.Row="5"
+                                                               Grid.Column="1"
+                                                               TextWrapping="Wrap"
+                                                               Text="{Binding SelectedProjectTocNotes}" />
+
+                                                    <TextBlock Grid.Row="6"
+                                                               FontWeight="SemiBold"
+                                                               Text="Dependencies" />
+                                                    <TextBlock Grid.Row="6"
+                                                               Grid.Column="1"
+                                                               TextWrapping="Wrap"
+                                                               Text="{Binding SelectedProjectTocDependencies}" />
+
+                                                    <TextBlock Grid.Row="7"
+                                                               FontWeight="SemiBold"
+                                                               Text="Saved variables" />
+                                                    <TextBlock Grid.Row="7"
+                                                               Grid.Column="1"
+                                                               TextWrapping="Wrap"
+                                                               Text="{Binding SelectedProjectTocSavedVariables}" />
+                                                </Grid>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <Border IsVisible="{Binding HasSelectedProjectSummary}"
+                                                Padding="20"
+                                                CornerRadius="8"
+                                                BorderThickness="1"
+                                                BorderBrush="#3A3A3A">
+                                            <StackPanel Spacing="10">
+                                                <TextBlock FontSize="17"
+                                                           FontWeight="SemiBold"
+                                                           Text="Summary" />
+                                                <TextBlock TextWrapping="Wrap"
+                                                           Opacity="0.85"
+                                                           Text="{Binding SelectedProjectSummary}" />
+                                            </StackPanel>
+                                        </Border>
                                     </StackPanel>
                                 </ScrollViewer>
                             </Grid>
