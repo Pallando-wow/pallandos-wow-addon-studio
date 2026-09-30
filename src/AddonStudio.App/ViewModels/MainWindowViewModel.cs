@@ -576,6 +576,9 @@ public partial class MainWindowViewModel(
             CurrentProjectTocVersion) &&
         CurrentProjectTocVersion != "—";
 
+    public bool HasNoCurrentReleaseVersion =>
+        !HasCurrentReleaseVersion;
+
     public string CurrentReleaseTitle =>
         HasCurrentReleaseVersion
             ? $"Current Release · {CurrentProjectTocVersion}"
@@ -2486,6 +2489,8 @@ public partial class MainWindowViewModel(
         OnPropertyChanged(
             nameof(HasCurrentReleaseVersion));
         OnPropertyChanged(
+            nameof(HasNoCurrentReleaseVersion));
+        OnPropertyChanged(
             nameof(CurrentReleaseTitle));
         OnPropertyChanged(
             nameof(PublishingChangelogFileName));
@@ -3122,6 +3127,7 @@ public partial class MainWindowViewModel(
         OnPropertyChanged(nameof(PublishingDescriptionFileName));
         OnPropertyChanged(nameof(PublishingChangelogFileName));
         OnPropertyChanged(nameof(HasCurrentReleaseVersion));
+        OnPropertyChanged(nameof(HasNoCurrentReleaseVersion));
         OnPropertyChanged(nameof(CurrentReleaseTitle));
         OnPropertyChanged(nameof(PublishingSummaryStatus));
         OnPropertyChanged(nameof(PublishingDescriptionStatus));
