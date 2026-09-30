@@ -264,6 +264,18 @@ public partial class MainWindowViewModel(
     private string publishingLogoFileName = string.Empty;
 
     [ObservableProperty]
+    private string publishingSummaryText = string.Empty;
+
+    [ObservableProperty]
+    private string publishingDescriptionText = string.Empty;
+
+    [ObservableProperty]
+    private string publishingChangelogText = string.Empty;
+
+    [ObservableProperty]
+    private bool publishingWorkspaceDirty;
+
+    [ObservableProperty]
     private Bitmap? currentProjectLogoImage;
 
     [ObservableProperty]
@@ -324,6 +336,11 @@ public partial class MainWindowViewModel(
 
     private string savedMarkdownText = string.Empty;
     private PublishingContentKind? markdownPublishingKind;
+    private string savedPublishingSummaryText = string.Empty;
+    private string savedPublishingDescriptionText = string.Empty;
+    private string savedPublishingChangelogText = string.Empty;
+    private string? publishingWorkspaceProjectDirectory;
+    private bool suppressPublishingWorkspaceDirty;
     private ProjectCatalogEntry? currentProject;
 
     public MainWindowViewModel(
@@ -568,6 +585,18 @@ public partial class MainWindowViewModel(
     public string PublishingChangelogStatus =>
         GetPublishingStatus(
             PublishingContentKind.Changelog);
+
+    public string PublishingWorkspaceStatus =>
+        PublishingWorkspaceDirty
+            ? "Unsaved changes"
+            : "All changes saved";
+
+    public bool CanSavePublishingWorkspace =>
+        PublishingWorkspaceDirty &&
+        HasCurrentProject;
+
+    public bool CanRevertPublishingWorkspace =>
+        PublishingWorkspaceDirty;
 
     public string PublishingSummaryActionText =>
         GetPublishingActionText(
@@ -840,7 +869,7 @@ public partial class MainWindowViewModel(
     }
 
     [RelayCommand]
-    private void ShowPublishing()
+    private async Task ShowPublishing()
     {
         if (SetupRequired ||
             !HasCurrentProject)
@@ -852,6 +881,8 @@ public partial class MainWindowViewModel(
         WorkspaceTabIndex = 0;
         RefreshPublishingMedia();
         RaisePublishingProperties();
+
+        await LoadPublishingWorkspaceAsync();
     }
 
     [RelayCommand]
@@ -1310,6 +1341,7 @@ public partial class MainWindowViewModel(
         CurrentProjectTree.Clear();
         CurrentRuntimeAddons.Clear();
         ClearMarkdownDocument();
+        ClearPublishingWorkspace();
         CurrentProjectLogoImage?.Dispose();
         CurrentProjectLogoImage = null;
         DisposeProjectScreenshots();
@@ -1442,6 +1474,100 @@ public partial class MainWindowViewModel(
             StatusMessage =
                 $"Opened '{document.DisplayName}'.";
         });
+    }
+
+    [RelayCommand]
+    private async Task SavePublishingWorkspaceAsync()
+    {
+        if (!PublishingWorkspaceDirty ||
+            CurrentProjectDirectory is null)
+        {
+            return;
+        }
+
+        await RunOperationAsync(async () =>
+        {
+            if (!string.Equals(
+                    PublishingSummaryText,
+                    savedPublishingSummaryText,
+                    StringComparison.Ordinal))
+            {
+                await publishingContentService.WriteAsync(
+                    CurrentProjectDirectory,
+                    PublishingContentKind.Summary,
+                    PublishingSummaryText);
+            }
+
+            if (!string.Equals(
+                    PublishingDescriptionText,
+                    savedPublishingDescriptionText,
+                    StringComparison.Ordinal))
+            {
+                await publishingContentService.WriteAsync(
+                    CurrentProjectDirectory,
+                    PublishingContentKind.Description,
+                    PublishingDescriptionText);
+            }
+
+            if (!string.Equals(
+                    PublishingChangelogText,
+                    savedPublishingChangelogText,
+                    StringComparison.Ordinal))
+            {
+                await publishingContentService.WriteAsync(
+                    CurrentProjectDirectory,
+                    PublishingContentKind.Changelog,
+                    PublishingChangelogText);
+            }
+
+            savedPublishingSummaryText =
+                PublishingSummaryText;
+            savedPublishingDescriptionText =
+                PublishingDescriptionText;
+            savedPublishingChangelogText =
+                PublishingChangelogText;
+            PublishingWorkspaceDirty = false;
+
+            RefreshCurrentProjectTree();
+            RaisePublishingProperties();
+
+            if (SelectedProject is not null &&
+                string.Equals(
+                    SelectedProject.ProjectDirectory,
+                    CurrentProjectDirectory,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                _ = LoadSelectedProjectPreviewMetadataAsync(
+                    SelectedProject);
+            }
+
+            StatusMessage =
+                "Publishing content saved.";
+        });
+    }
+
+    [RelayCommand]
+    private void RevertPublishingWorkspace()
+    {
+        suppressPublishingWorkspaceDirty = true;
+
+        try
+        {
+            PublishingSummaryText =
+                savedPublishingSummaryText;
+            PublishingDescriptionText =
+                savedPublishingDescriptionText;
+            PublishingChangelogText =
+                savedPublishingChangelogText;
+        }
+        finally
+        {
+            suppressPublishingWorkspaceDirty = false;
+        }
+
+        PublishingWorkspaceDirty = false;
+        StatusMessage =
+            "Publishing changes reverted.";
     }
 
     [RelayCommand]
@@ -1661,9 +1787,17 @@ public partial class MainWindowViewModel(
             return Task.CompletedTask;
         }
 
+        if (changesProject && PublishingWorkspaceDirty)
+        {
+            StatusMessage =
+                "Save or revert the Publishing changes before switching projects.";
+            return Task.CompletedTask;
+        }
+
         if (changesProject)
         {
             ClearMarkdownDocument();
+            ClearPublishingWorkspace();
         }
 
         currentProject = project;
@@ -2137,6 +2271,51 @@ public partial class MainWindowViewModel(
     partial void OnHasMarkdownDocumentChanged(bool value) =>
         OnPropertyChanged(nameof(CanCloseMarkdownDocument));
 
+    partial void OnPublishingSummaryTextChanged(
+        string value) =>
+        UpdatePublishingWorkspaceDirty();
+
+    partial void OnPublishingDescriptionTextChanged(
+        string value) =>
+        UpdatePublishingWorkspaceDirty();
+
+    partial void OnPublishingChangelogTextChanged(
+        string value) =>
+        UpdatePublishingWorkspaceDirty();
+
+    partial void OnPublishingWorkspaceDirtyChanged(
+        bool value)
+    {
+        OnPropertyChanged(
+            nameof(PublishingWorkspaceStatus));
+        OnPropertyChanged(
+            nameof(CanSavePublishingWorkspace));
+        OnPropertyChanged(
+            nameof(CanRevertPublishingWorkspace));
+    }
+
+    private void UpdatePublishingWorkspaceDirty()
+    {
+        if (suppressPublishingWorkspaceDirty)
+        {
+            return;
+        }
+
+        PublishingWorkspaceDirty =
+            !string.Equals(
+                PublishingSummaryText,
+                savedPublishingSummaryText,
+                StringComparison.Ordinal) ||
+            !string.Equals(
+                PublishingDescriptionText,
+                savedPublishingDescriptionText,
+                StringComparison.Ordinal) ||
+            !string.Equals(
+                PublishingChangelogText,
+                savedPublishingChangelogText,
+                StringComparison.Ordinal);
+    }
+
     partial void OnPublishingLogoFileNameChanged(
         string value)
     {
@@ -2580,6 +2759,98 @@ public partial class MainWindowViewModel(
             ? $"Edit {label}"
             : $"Create {label}";
 
+    private async Task LoadPublishingWorkspaceAsync(
+        bool force = false)
+    {
+        if (CurrentProjectDirectory is null)
+        {
+            ClearPublishingWorkspace();
+            return;
+        }
+
+        if (!force &&
+            PublishingWorkspaceDirty &&
+            string.Equals(
+                publishingWorkspaceProjectDirectory,
+                CurrentProjectDirectory,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        await RunOperationAsync(async () =>
+        {
+            var summaryTask =
+                publishingContentService.ReadAsync(
+                    CurrentProjectDirectory,
+                    PublishingContentKind.Summary);
+            var descriptionTask =
+                publishingContentService.ReadAsync(
+                    CurrentProjectDirectory,
+                    PublishingContentKind.Description);
+            var changelogTask =
+                publishingContentService.ReadAsync(
+                    CurrentProjectDirectory,
+                    PublishingContentKind.Changelog);
+
+            await Task.WhenAll(
+                summaryTask,
+                descriptionTask,
+                changelogTask);
+
+            suppressPublishingWorkspaceDirty = true;
+
+            try
+            {
+                PublishingSummaryText =
+                    await summaryTask;
+                PublishingDescriptionText =
+                    await descriptionTask;
+                PublishingChangelogText =
+                    await changelogTask;
+            }
+            finally
+            {
+                suppressPublishingWorkspaceDirty = false;
+            }
+
+            savedPublishingSummaryText =
+                PublishingSummaryText;
+            savedPublishingDescriptionText =
+                PublishingDescriptionText;
+            savedPublishingChangelogText =
+                PublishingChangelogText;
+            publishingWorkspaceProjectDirectory =
+                CurrentProjectDirectory;
+            PublishingWorkspaceDirty = false;
+
+            StatusMessage =
+                "Publishing content loaded.";
+        });
+    }
+
+    private void ClearPublishingWorkspace()
+    {
+        suppressPublishingWorkspaceDirty = true;
+
+        try
+        {
+            PublishingSummaryText = string.Empty;
+            PublishingDescriptionText = string.Empty;
+            PublishingChangelogText = string.Empty;
+        }
+        finally
+        {
+            suppressPublishingWorkspaceDirty = false;
+        }
+
+        savedPublishingSummaryText = string.Empty;
+        savedPublishingDescriptionText = string.Empty;
+        savedPublishingChangelogText = string.Empty;
+        publishingWorkspaceProjectDirectory = null;
+        PublishingWorkspaceDirty = false;
+    }
+
     private void RefreshPublishingMedia()
     {
         PublishingLogoFileName = string.Empty;
@@ -2696,6 +2967,9 @@ public partial class MainWindowViewModel(
         OnPropertyChanged(nameof(PublishingSummaryActionText));
         OnPropertyChanged(nameof(PublishingDescriptionActionText));
         OnPropertyChanged(nameof(PublishingChangelogActionText));
+        OnPropertyChanged(nameof(PublishingWorkspaceStatus));
+        OnPropertyChanged(nameof(CanSavePublishingWorkspace));
+        OnPropertyChanged(nameof(CanRevertPublishingWorkspace));
         RaisePublishingMediaProperties();
         RaiseProjectDashboardProperties();
     }
