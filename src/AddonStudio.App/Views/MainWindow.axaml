@@ -1525,20 +1525,25 @@
                                                   ColumnSpacing="18"
                                                   RowSpacing="12">
                                                 <TextBlock Grid.Row="0"
-                                                           VerticalAlignment="Center"
+                                                           VerticalAlignment="Top"
+                                                           Margin="0,7,0,0"
                                                            FontWeight="SemiBold"
                                                            Text="Main category" />
-                                                <ComboBox Grid.Row="0"
-                                                          Grid.Column="1"
-                                                          ItemsSource="{Binding CurseForgeCategories}"
-                                                          SelectedItem="{Binding SelectedCurseForgeMainCategory}"
-                                                          PlaceholderText="Select a CurseForge category">
-                                                    <ComboBox.ItemTemplate>
-                                                        <DataTemplate x:DataType="vm:CurseForgeCategoryChoice">
-                                                            <TextBlock Text="{Binding Name}" />
-                                                        </DataTemplate>
-                                                    </ComboBox.ItemTemplate>
-                                                </ComboBox>
+                                                <StackPanel Grid.Row="0"
+                                                            Grid.Column="1"
+                                                            Spacing="6">
+                                                    <TextBox Text="{Binding CurseForgeMainCategorySearchText}"
+                                                             Watermark="Filter categories ..." />
+                                                    <ComboBox ItemsSource="{Binding FilteredCurseForgeMainCategories}"
+                                                              SelectedItem="{Binding SelectedCurseForgeMainCategory}"
+                                                              PlaceholderText="Select a CurseForge category">
+                                                        <ComboBox.ItemTemplate>
+                                                            <DataTemplate x:DataType="vm:CurseForgeCategoryChoice">
+                                                                <TextBlock Text="{Binding Name}" />
+                                                            </DataTemplate>
+                                                        </ComboBox.ItemTemplate>
+                                                    </ComboBox>
+                                                </StackPanel>
 
                                                 <TextBlock Grid.Row="1"
                                                            VerticalAlignment="Top"
@@ -1547,18 +1552,29 @@
                                                            Text="Additional categories" />
                                                 <StackPanel Grid.Row="1"
                                                             Grid.Column="1"
-                                                            Spacing="5">
-                                                    <Border MaxHeight="210"
+                                                            Spacing="6">
+                                                    <Grid ColumnDefinitions="*,Auto"
+                                                          ColumnSpacing="10">
+                                                        <TextBox Grid.Column="0"
+                                                                 Text="{Binding CurseForgeAdditionalCategorySearchText}"
+                                                                 Watermark="Filter additional categories ..." />
+                                                        <TextBlock Grid.Column="1"
+                                                                   VerticalAlignment="Center"
+                                                                   Opacity="0.7"
+                                                                   Text="{Binding CurseForgeAdditionalCategorySelectionStatus}" />
+                                                    </Grid>
+                                                    <Border MaxHeight="230"
                                                             Padding="8"
                                                             BorderThickness="1"
                                                             BorderBrush="#303030">
                                                         <ScrollViewer>
-                                                            <ItemsControl ItemsSource="{Binding CurseForgeCategories}">
+                                                            <ItemsControl ItemsSource="{Binding FilteredCurseForgeAdditionalCategories}">
                                                                 <ItemsControl.ItemTemplate>
                                                                     <DataTemplate x:DataType="vm:CurseForgeCategoryChoice">
                                                                         <CheckBox Margin="0,2"
                                                                                   Content="{Binding Name}"
-                                                                                  IsChecked="{Binding IsSelected}" />
+                                                                                  IsChecked="{Binding IsSelected}"
+                                                                                  IsEnabled="{Binding CanSelectAdditional}" />
                                                                     </DataTemplate>
                                                                 </ItemsControl.ItemTemplate>
                                                             </ItemsControl>
@@ -1566,7 +1582,8 @@
                                                     </Border>
                                                     <TextBlock FontSize="11"
                                                                Opacity="0.6"
-                                                               Text="Select up to four additional categories." />
+                                                               TextWrapping="Wrap"
+                                                               Text="Select up to four additional categories. The selected main category is excluded automatically." />
                                                 </StackPanel>
 
                                                 <TextBlock Grid.Row="2"
