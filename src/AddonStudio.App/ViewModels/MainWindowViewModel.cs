@@ -1456,19 +1456,9 @@ public partial class MainWindowViewModel(
     {
         await RunOperationAsync(async () =>
         {
-            var sourceFile =
-                string.IsNullOrWhiteSpace(
-                    SavedVariablesPath)
-                    ? CollectorSourceFile
-                    : PallandoCollectorSource
-                        .ResolveFromSavedVariablesDirectory(
-                            SavedVariablesPath);
-
-            CollectorSourceFile = sourceFile;
-
             var snapshot =
                 await pallandoCollectorReader.ReadAsync(
-                    sourceFile);
+                    CollectorSourceFile);
 
             CollectorApis.Clear();
 
