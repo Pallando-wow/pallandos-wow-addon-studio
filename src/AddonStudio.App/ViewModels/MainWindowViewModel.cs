@@ -1811,7 +1811,7 @@ public partial class MainWindowViewModel(
         StatusMessage = "Markdown document closed.";
     }
 
-    public Task OpenProjectAsync(
+    public async Task OpenProjectAsync(
         ProjectCatalogEntry project)
     {
         ArgumentNullException.ThrowIfNull(project);
@@ -1827,14 +1827,14 @@ public partial class MainWindowViewModel(
         {
             StatusMessage =
                 "Save or revert the current Markdown document before switching projects.";
-            return Task.CompletedTask;
+            return;
         }
 
         if (changesProject && PublishingWorkspaceDirty)
         {
             StatusMessage =
                 "Save or revert the Publishing changes before switching projects.";
-            return Task.CompletedTask;
+            return;
         }
 
         if (changesProject)
@@ -1851,7 +1851,7 @@ public partial class MainWindowViewModel(
         LoadCurseForgeSettings(
             project.Manifest.CurseForge);
         CurrentProjectTocVersion = "—";
-        _ = LoadCurrentProjectTocVersionAsync(
+        await LoadCurrentProjectTocVersionAsync(
             project);
 
         CurrentRuntimeAddons.Clear();
@@ -1876,8 +1876,6 @@ public partial class MainWindowViewModel(
         Sidebar = StudioSidebar.ProjectOverview;
         WorkspaceTabIndex = 0;
         StatusMessage = $"Project '{project.Name}' opened.";
-
-        return Task.CompletedTask;
     }
 
     public async Task CreateAddonAsync()
