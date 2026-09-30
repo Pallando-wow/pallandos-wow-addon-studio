@@ -1165,6 +1165,38 @@ public partial class MainWindowViewModel(
     }
 
     [RelayCommand]
+    private async Task LoadCurseForgeProjectAsync()
+    {
+        if (!CurseForgeDataSourceReady)
+        {
+            StatusMessage =
+                "Connect the CurseForge data source first.";
+            return;
+        }
+
+        if (!CanLoadCurseForgeProject)
+        {
+            StatusMessage =
+                "Enter a CurseForge Project ID or slug first.";
+            return;
+        }
+
+        await RunOperationAsync(async () =>
+        {
+            ClearCurseForgeRemoteProject();
+
+            var project =
+                await ResolveConfiguredCurseForgeProjectAsync();
+
+            SetCurseForgeRemoteProject(
+                project);
+
+            StatusMessage =
+                $"CurseForge project '{project.Name}' connected.";
+        });
+    }
+
+    [RelayCommand]
     private async Task TestCurseForgeDataSourceAsync()
     {
         if (!IsCurseForgeDataSourceConfigured)
@@ -1172,7 +1204,9 @@ public partial class MainWindowViewModel(
             CurseForgeDataSourceReady = false;
             CurseForgeDataSourceStatus =
                 "Not configured";
+            curseForgeGameId = 0;
             ClearCurseForgeCategoryChoices();
+            ClearCurseForgeRemoteProject();
             StatusMessage =
                 "Enter a CurseForge API key first.";
             return;
@@ -1185,12 +1219,17 @@ public partial class MainWindowViewModel(
                 CurseForgeDataSourceReady = false;
                 CurseForgeDataSourceStatus =
                     "Connecting ...";
+                curseForgeGameId = 0;
                 ClearCurseForgeCategoryChoices();
+                ClearCurseForgeRemoteProject();
 
                 var snapshot =
                     await curseForgeDataSourceClient
                         .LoadWorldOfWarcraftAsync(
                             CurseForgeApiKey);
+
+                curseForgeGameId =
+                    snapshot.Game.Id;
 
                 var addonClass =
                     snapshot.Categories
@@ -1239,18 +1278,172 @@ public partial class MainWindowViewModel(
 
                 ApplyCurseForgeCategorySelections();
 
-                StatusMessage =
-                    "CurseForge data source connected.";
+                if (CanLoadCurseForgeProject)
+                {
+                    try
+                    {
+                        var project =
+                            await ResolveConfiguredCurseForgeProjectAsync();
+
+                        SetCurseForgeRemoteProject(
+                            project);
+
+                        StatusMessage =
+                            $"CurseForge connected · {project.Name}.";
+                    }
+                    catch (Exception exception)
+                        when (exception is
+                            HttpRequestException or
+                            InvalidDataException or
+                            ArgumentException)
+                    {
+                        ClearCurseForgeRemoteProject();
+                        StatusMessage =
+                            $"CurseForge data source connected; project lookup failed: {exception.Message}";
+                    }
+                }
+                else
+                {
+                    StatusMessage =
+                        "CurseForge data source connected.";
+                }
             }
             catch
             {
                 CurseForgeDataSourceReady = false;
                 CurseForgeDataSourceStatus =
                     "Connection failed";
+                curseForgeGameId = 0;
                 ClearCurseForgeCategoryChoices();
+                ClearCurseForgeRemoteProject();
                 throw;
             }
         });
+    }
+
+    private async Task<CurseForgeProject>
+        ResolveConfiguredCurseForgeProjectAsync()
+    {
+        if (curseForgeGameId <= 0)
+        {
+            throw new InvalidOperationException(
+                "The CurseForge World of Warcraft data source is not connected.");
+        }
+
+        CurseForgeProject? project;
+
+        if (!string.IsNullOrWhiteSpace(
+                CurseForgeProjectId))
+        {
+            if (!int.TryParse(
+                    CurseForgeProjectId.Trim(),
+                    out var projectId) ||
+                projectId <= 0)
+            {
+                throw new InvalidDataException(
+                    "CurseForge Project ID must be a positive number.");
+            }
+
+            project =
+                await curseForgeDataSourceClient
+                    .GetProjectAsync(
+                        CurseForgeApiKey,
+                        projectId);
+        }
+        else
+        {
+            project =
+                await curseForgeDataSourceClient
+                    .FindProjectBySlugAsync(
+                        CurseForgeApiKey,
+                        curseForgeGameId,
+                        CurseForgeSlug);
+
+            if (project is null)
+            {
+                throw new InvalidDataException(
+                    $"No CurseForge project with slug '{CurseForgeSlug.Trim()}' was found.");
+            }
+        }
+
+        if (project.GameId !=
+            curseForgeGameId)
+        {
+            throw new InvalidDataException(
+                $"CurseForge project '{project.Name}' does not belong to World of Warcraft.");
+        }
+
+        return project;
+    }
+
+    private void SetCurseForgeRemoteProject(
+        CurseForgeProject project)
+    {
+        curseForgeRemoteProject =
+            project;
+
+        CurseForgeProjectId =
+            project.Id.ToString();
+        CurseForgeSlug =
+            project.Slug;
+
+        RaiseCurseForgeProjectProperties();
+        RaiseCurseForgeReadinessProperties();
+        RaiseProjectDashboardProperties();
+    }
+
+    private void ClearCurseForgeRemoteProject()
+    {
+        curseForgeRemoteProject = null;
+        RaiseCurseForgeProjectProperties();
+        RaiseCurseForgeReadinessProperties();
+        RaiseProjectDashboardProperties();
+    }
+
+    private void RaiseCurseForgeProjectProperties()
+    {
+        OnPropertyChanged(
+            nameof(CurseForgeProjectConnected));
+        OnPropertyChanged(
+            nameof(CurseForgeRemoteProjectName));
+        OnPropertyChanged(
+            nameof(CurseForgeRemoteProjectSlug));
+        OnPropertyChanged(
+            nameof(CurseForgeRemoteProjectStatus));
+        OnPropertyChanged(
+            nameof(CanLoadCurseForgeProject));
+        OnPropertyChanged(
+            nameof(CurseForgeBindingStatus));
+        OnPropertyChanged(
+            nameof(CurseForgeCategoryComparisonStatus));
+    }
+
+    private void RaiseCurseForgeReadinessProperties()
+    {
+        OnPropertyChanged(
+            nameof(CurseForgeScreenshotsStatus));
+        OnPropertyChanged(
+            nameof(CurseForgeReadinessBinding));
+        OnPropertyChanged(
+            nameof(CurseForgeReadinessSummary));
+        OnPropertyChanged(
+            nameof(CurseForgeReadinessDescription));
+        OnPropertyChanged(
+            nameof(CurseForgeReadinessLogo));
+        OnPropertyChanged(
+            nameof(CurseForgeReadinessVersion));
+        OnPropertyChanged(
+            nameof(CurseForgeReadinessChangelog));
+        OnPropertyChanged(
+            nameof(CurseForgeReadinessMainCategory));
+        OnPropertyChanged(
+            nameof(CurseForgeReadinessLicense));
+        OnPropertyChanged(
+            nameof(CurseForgeReadinessDistribution));
+        OnPropertyChanged(
+            nameof(CurseForgeReadinessIssuesCount));
+        OnPropertyChanged(
+            nameof(CurseForgePublishingReadiness));
     }
 
     private void ClearCurseForgeCategoryChoices()
