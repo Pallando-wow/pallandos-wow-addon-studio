@@ -811,14 +811,16 @@
                             </Border>
 
                             <Border IsVisible="{Binding IsImportCollectorAction}"
-                                    MaxWidth="1040"
-                                    HorizontalAlignment="Left"
-                                    VerticalAlignment="Top"
+                                    HorizontalAlignment="Stretch"
+                                    VerticalAlignment="Stretch"
                                     Padding="22"
                                     CornerRadius="8"
                                     BorderThickness="1"
                                     BorderBrush="#3A3A3A">
-                                <ScrollViewer MaxHeight="650">
+                                <ScrollViewer HorizontalAlignment="Stretch"
+                                              VerticalAlignment="Stretch"
+                                              HorizontalScrollBarVisibility="Disabled"
+                                              VerticalScrollBarVisibility="Auto">
                                     <StackPanel Spacing="14">
                                         <Grid ColumnDefinitions="*,Auto">
                                             <TextBlock Grid.Column="0"
