@@ -746,7 +746,7 @@ public partial class MainWindowViewModel(
                     category.Id.ToString())
                 .ToArray();
 
-        if (additionalCategories.Count > 4)
+        if (additionalCategories.Length > 4)
         {
             StatusMessage =
                 "CurseForge supports at most four additional categories.";
