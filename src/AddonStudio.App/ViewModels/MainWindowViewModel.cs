@@ -78,6 +78,7 @@ public partial class MainWindowViewModel(
     AddonProjectService addonProjectService,
     ProjectCurseForgeSettingsService projectCurseForgeSettingsService,
     CurseForgeDataSourceClient curseForgeDataSourceClient,
+    ILocalSecretStore localSecretStore,
     IStudioSettingsStore settingsStore,
     ProjectCatalogService projectCatalogService,
     ProjectExplorerService projectExplorerService,
@@ -87,6 +88,9 @@ public partial class MainWindowViewModel(
     TocDocumentReader tocDocumentReader,
     IPallandoCollectorReader pallandoCollectorReader) : ViewModelBase
 {
+    private const string CurseForgeApiKeySecretName =
+        "curseforge-api-key";
+
     public string StudioVersion =>
         typeof(MainWindowViewModel).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
 
@@ -280,6 +284,7 @@ public partial class MainWindowViewModel(
         AddonProjectService addonProjectService,
         ProjectCurseForgeSettingsService projectCurseForgeSettingsService,
         CurseForgeDataSourceClient curseForgeDataSourceClient,
+        ILocalSecretStore localSecretStore,
         IStudioSettingsStore settingsStore,
         ProjectCatalogService projectCatalogService,
         ProjectExplorerService projectExplorerService,
@@ -293,6 +298,7 @@ public partial class MainWindowViewModel(
             addonProjectService,
             projectCurseForgeSettingsService,
             curseForgeDataSourceClient,
+            localSecretStore,
             settingsStore,
             projectCatalogService,
             projectExplorerService,
@@ -307,7 +313,31 @@ public partial class MainWindowViewModel(
         projectRoot = settings.ProjectRoot;
         wowForeverAddOnsPath = settings.WowForeverAddOnsPath;
         savedVariablesPath = settings.SavedVariablesPath;
-        curseForgeApiKey = settings.CurseForgeApiKey;
+
+        var protectedCurseForgeApiKey =
+            localSecretStore.Load(
+                CurseForgeApiKeySecretName);
+
+        if (!string.IsNullOrWhiteSpace(
+                protectedCurseForgeApiKey))
+        {
+            curseForgeApiKey =
+                protectedCurseForgeApiKey;
+        }
+        else if (!string.IsNullOrWhiteSpace(
+                     settings.CurseForgeApiKey))
+        {
+            curseForgeApiKey =
+                settings.CurseForgeApiKey.Trim();
+
+            localSecretStore.Save(
+                CurseForgeApiKeySecretName,
+                curseForgeApiKey);
+
+            // Rewrite settings without the legacy plaintext key.
+            settingsStore.Save(settings);
+        }
+
         curseForgeDataSourceStatus =
             string.IsNullOrWhiteSpace(curseForgeApiKey)
                 ? "Not configured"
@@ -1039,6 +1069,19 @@ public partial class MainWindowViewModel(
 
         settingsStore.Save(settings);
 
+        if (string.IsNullOrWhiteSpace(
+                settings.CurseForgeApiKey))
+        {
+            localSecretStore.Delete(
+                CurseForgeApiKeySecretName);
+        }
+        else
+        {
+            localSecretStore.Save(
+                CurseForgeApiKeySecretName,
+                settings.CurseForgeApiKey);
+        }
+
         ProjectRoot = Path.GetFullPath(settings.ProjectRoot);
         WowForeverAddOnsPath = Path.GetFullPath(settings.WowForeverAddOnsPath);
         SavedVariablesPath =
@@ -1060,6 +1103,7 @@ public partial class MainWindowViewModel(
     public void ResetSettings()
     {
         settingsStore.Delete();
+        localSecretStore.DeleteAll();
 
         ProjectRoot = string.Empty;
         WowForeverAddOnsPath = string.Empty;
