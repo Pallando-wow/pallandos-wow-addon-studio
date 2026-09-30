@@ -27,11 +27,16 @@ public partial class App : Avalonia.Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             var manifestReader = new ProjectManifestReader();
+            var manifestWriter = new ProjectManifestWriter();
             var addonSourceInspector = new AddonSourceInspector();
 
             var addonProjectService = new AddonProjectService(
                 addonSourceInspector,
-                new ProjectManifestWriter());
+                manifestWriter);
+
+            var projectCurseForgeSettingsService =
+                new ProjectCurseForgeSettingsService(
+                    manifestWriter);
 
             var projectCatalogService =
                 new ProjectCatalogService(
@@ -63,6 +68,7 @@ public partial class App : Avalonia.Application
             {
                 DataContext = new MainWindowViewModel(
                     addonProjectService,
+                    projectCurseForgeSettingsService,
                     settingsStore,
                     projectCatalogService,
                     projectExplorerService,
