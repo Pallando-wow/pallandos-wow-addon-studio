@@ -58,9 +58,25 @@ public sealed class ProjectCurseForgeSettingsServiceTests
                     projectDirectory,
                     ProjectLayout.ManifestFileName));
 
+            Assert.NotNull(persisted.CurseForge);
             Assert.Equal(
-                updated.CurseForge,
-                persisted.CurseForge);
+                updated.CurseForge.ProjectId,
+                persisted.CurseForge.ProjectId);
+            Assert.Equal(
+                updated.CurseForge.Slug,
+                persisted.CurseForge.Slug);
+            Assert.Equal(
+                updated.CurseForge.MainCategoryId,
+                persisted.CurseForge.MainCategoryId);
+            Assert.Equal(
+                updated.CurseForge.AdditionalCategoryIds,
+                persisted.CurseForge.AdditionalCategoryIds);
+            Assert.Equal(
+                updated.CurseForge.License,
+                persisted.CurseForge.License);
+            Assert.Equal(
+                updated.CurseForge.AllowDistribution,
+                persisted.CurseForge.AllowDistribution);
         }
         finally
         {
