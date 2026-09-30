@@ -1754,10 +1754,31 @@ public partial class MainWindowViewModel(
         {
             if (markdownPublishingKind is PublishingContentKind kind)
             {
-                await publishingContentService.WriteAsync(
-                    CurrentProjectDirectory,
-                    kind,
-                    MarkdownText);
+                if (kind == PublishingContentKind.Changelog)
+                {
+                    if (!HasCurrentReleaseVersion)
+                    {
+                        throw new InvalidOperationException(
+                            "The .toc version is required before saving the release changelog.");
+                    }
+
+                    await publishingContentService
+                        .WriteReleaseChangelogAsync(
+                            CurrentProjectDirectory,
+                            CurrentProjectTocVersion,
+                            MarkdownText,
+                            removeLegacyFile: true);
+
+                    publishingChangelogLoadedFromLegacy =
+                        false;
+                }
+                else
+                {
+                    await publishingContentService.WriteAsync(
+                        CurrentProjectDirectory,
+                        kind,
+                        MarkdownText);
+                }
 
                 RefreshCurrentProjectTree();
                 RaisePublishingProperties();
