@@ -341,6 +341,7 @@ public partial class MainWindowViewModel(
     private string savedPublishingChangelogText = string.Empty;
     private string? publishingWorkspaceProjectDirectory;
     private bool suppressPublishingWorkspaceDirty;
+    private bool publishingChangelogLoadedFromLegacy;
     private ProjectCatalogEntry? currentProject;
 
     public MainWindowViewModel(
