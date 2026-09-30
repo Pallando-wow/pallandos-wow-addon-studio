@@ -269,6 +269,48 @@ public partial class MainWindowViewModel(
     public int SelectedProjectRuntimeAddonCount =>
         SelectedProject?.RuntimeAddonCount ?? 0;
 
+    public string SelectedProjectRuntimeAddons =>
+        SelectedProject is null ||
+        SelectedProject.Manifest.Runtime.Addons.Count == 0
+            ? "—"
+            : $"{SelectedProject.Manifest.Runtime.Addons.Count} · {string.Join(", ", SelectedProject.Manifest.Runtime.Addons)}";
+
+    public string SelectedProjectComponents =>
+        SelectedProject is null ||
+        SelectedProject.Manifest.Components.Count == 0
+            ? "None"
+            : $"{SelectedProject.Manifest.Components.Count} · {string.Join(", ", SelectedProject.Manifest.Components.Select(component => component.Id))}";
+
+    public string SelectedProjectPackageName =>
+        string.IsNullOrWhiteSpace(
+            SelectedProject?.Manifest.Release?.PackageName)
+            ? "—"
+            : SelectedProject!.Manifest.Release!.PackageName!;
+
+    public string SelectedProjectCurseForge
+    {
+        get
+        {
+            var curseForge = SelectedProject?.Manifest.CurseForge;
+
+            if (curseForge is null ||
+                (string.IsNullOrWhiteSpace(curseForge.Slug) &&
+                 string.IsNullOrWhiteSpace(curseForge.ProjectId)))
+            {
+                return "Not linked";
+            }
+
+            if (!string.IsNullOrWhiteSpace(curseForge.Slug) &&
+                !string.IsNullOrWhiteSpace(curseForge.ProjectId))
+            {
+                return $"{curseForge.Slug} · #{curseForge.ProjectId}";
+            }
+
+            return curseForge.Slug ??
+                $"Project #{curseForge.ProjectId}";
+        }
+    }
+
     public string SelectedProjectDirectory =>
         SelectedProject?.ProjectDirectory ?? string.Empty;
 
@@ -1030,6 +1072,10 @@ public partial class MainWindowViewModel(
         OnPropertyChanged(nameof(SelectedProjectTypeName));
         OnPropertyChanged(nameof(SelectedProjectPrimaryAddon));
         OnPropertyChanged(nameof(SelectedProjectRuntimeAddonCount));
+        OnPropertyChanged(nameof(SelectedProjectRuntimeAddons));
+        OnPropertyChanged(nameof(SelectedProjectComponents));
+        OnPropertyChanged(nameof(SelectedProjectPackageName));
+        OnPropertyChanged(nameof(SelectedProjectCurseForge));
         OnPropertyChanged(nameof(SelectedProjectDirectory));
     }
 
