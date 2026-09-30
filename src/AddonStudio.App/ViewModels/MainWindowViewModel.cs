@@ -2735,9 +2735,23 @@ public partial class MainWindowViewModel(
             return;
         }
 
-        var file = publishingContentService.Resolve(
-            CurrentProjectDirectory,
-            kind);
+        if (kind == PublishingContentKind.Changelog &&
+            !HasCurrentReleaseVersion)
+        {
+            StatusMessage =
+                "The .toc version is required before editing the release changelog.";
+            return;
+        }
+
+        var file =
+            kind == PublishingContentKind.Changelog
+                ? publishingContentService
+                    .ResolveReleaseChangelog(
+                        CurrentProjectDirectory,
+                        CurrentProjectTocVersion)
+                : publishingContentService.Resolve(
+                    CurrentProjectDirectory,
+                    kind);
 
         if (IsMarkdownDirty &&
             !discardUnsavedChanges)
@@ -2749,9 +2763,15 @@ public partial class MainWindowViewModel(
 
         await RunOperationAsync(async () =>
         {
-            var text = await publishingContentService.ReadAsync(
-                CurrentProjectDirectory,
-                kind);
+            var text =
+                kind == PublishingContentKind.Changelog
+                    ? await publishingContentService
+                        .ReadReleaseChangelogAsync(
+                            CurrentProjectDirectory,
+                            CurrentProjectTocVersion)
+                    : await publishingContentService.ReadAsync(
+                        CurrentProjectDirectory,
+                        kind);
 
             markdownPublishingKind = kind;
             savedMarkdownText = text;
@@ -2779,12 +2799,38 @@ public partial class MainWindowViewModel(
 
         try
         {
+            if (kind != PublishingContentKind.Changelog)
+            {
+                return publishingContentService
+                    .Resolve(
+                        CurrentProjectDirectory,
+                        kind)
+                    .Exists
+                    ? "Created"
+                    : "Not created";
+            }
+
+            if (!HasCurrentReleaseVersion)
+            {
+                return "Version unavailable";
+            }
+
+            var releaseFile =
+                publishingContentService
+                    .ResolveReleaseChangelog(
+                        CurrentProjectDirectory,
+                        CurrentProjectTocVersion);
+
+            if (releaseFile.Exists)
+            {
+                return "Created";
+            }
+
             return publishingContentService
-                .Resolve(
+                .IsReleaseChangelogUsingLegacyFallback(
                     CurrentProjectDirectory,
-                    kind)
-                .Exists
-                ? "Created"
+                    CurrentProjectTocVersion)
+                ? "Legacy file · save to migrate"
                 : "Not created";
         }
         catch
@@ -2795,10 +2841,18 @@ public partial class MainWindowViewModel(
 
     private string GetPublishingActionText(
         PublishingContentKind kind,
-        string label) =>
-        GetPublishingStatus(kind) == "Created"
+        string label)
+    {
+        var status =
+            GetPublishingStatus(kind);
+
+        return status is "Created" ||
+               status.StartsWith(
+                   "Legacy",
+                   StringComparison.Ordinal)
             ? $"Edit {label}"
             : $"Create {label}";
+    }
 
     private async Task LoadPublishingWorkspaceAsync(
         bool force = false)
