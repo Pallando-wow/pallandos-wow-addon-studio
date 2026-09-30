@@ -751,7 +751,7 @@
 
                             <ScrollViewer IsVisible="{Binding IsProjectOverviewSidebar}">
                                 <StackPanel Margin="32"
-                                            MaxWidth="1280"
+                                            MaxWidth="1480"
                                             HorizontalAlignment="Left"
                                             Spacing="20">
                                     <Border Padding="20"
@@ -855,7 +855,7 @@
 
                                     <WrapPanel Orientation="Horizontal">
                                         <StackPanel Width="760"
-                                                    Margin="0,0,16,16"
+                                                    Margin="0,0,20,16"
                                                     Spacing="14">
                                             <Grid ColumnDefinitions="*,*"
                                                   ColumnSpacing="14">
@@ -1045,8 +1045,8 @@
 
                                         </StackPanel>
 
-                                        <Border Width="420"
-                                                MinHeight="520"
+                                        <Border Width="640"
+                                                MinHeight="620"
                                                 Margin="0,0,0,16"
                                                 Padding="18"
                                                 CornerRadius="8"
@@ -1091,7 +1091,7 @@
 
                                                 <StackPanel IsVisible="{Binding HasProjectScreenshots}"
                                                             Spacing="10">
-                                                    <ListBox MaxHeight="92"
+                                                    <ListBox MaxHeight="112"
                                                              ItemsSource="{Binding ProjectScreenshots}"
                                                              SelectedItem="{Binding SelectedProjectScreenshot}"
                                                              ScrollViewer.HorizontalScrollBarVisibility="Auto"
@@ -1103,8 +1103,8 @@
                                                         </ListBox.ItemsPanel>
                                                         <ListBox.ItemTemplate>
                                                             <DataTemplate x:DataType="vm:ProjectScreenshotItem">
-                                                                <Border Width="92"
-                                                                        Height="68"
+                                                                <Border Width="112"
+                                                                        Height="82"
                                                                         Margin="2"
                                                                         Padding="3"
                                                                         CornerRadius="4"
@@ -1117,7 +1117,7 @@
                                                         </ListBox.ItemTemplate>
                                                     </ListBox>
 
-                                                    <Border Height="300"
+                                                    <Border Height="440"
                                                             CornerRadius="6"
                                                             BorderThickness="1"
                                                             BorderBrush="#303030"
