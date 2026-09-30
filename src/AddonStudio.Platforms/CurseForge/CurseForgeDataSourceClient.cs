@@ -142,8 +142,15 @@ public sealed class CurseForgeDataSourceClient
             mod.Status,
             mod.PrimaryCategoryId,
             mod.Categories
-                .Select(category => category.Id)
-                .Distinct()
+                .Select(category =>
+                    new CurseForgeProjectCategory(
+                        category.Id,
+                        category.Name ?? string.Empty,
+                        category.Slug ?? string.Empty,
+                        category.ClassId,
+                        category.ParentCategoryId))
+                .DistinctBy(category =>
+                    category.Id)
                 .ToArray());
 
     private async Task<CurseForgeGame>
