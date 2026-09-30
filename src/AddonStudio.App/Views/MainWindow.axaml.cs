@@ -73,6 +73,19 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void ChooseSavedVariablesPath_Click(
+        object? sender,
+        RoutedEventArgs e)
+    {
+        var path = await PickFolderAsync(
+            "Select WoW SavedVariables folder");
+
+        if (path is not null && ViewModel is not null)
+        {
+            ViewModel.SavedVariablesPath = path;
+        }
+    }
+
     private async void ChooseImportSource_Click(
         object? sender,
         RoutedEventArgs e)
