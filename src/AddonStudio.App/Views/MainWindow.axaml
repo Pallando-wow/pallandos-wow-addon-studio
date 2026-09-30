@@ -751,7 +751,7 @@
 
                             <ScrollViewer IsVisible="{Binding IsProjectOverviewSidebar}">
                                 <StackPanel Margin="32"
-                                            MaxWidth="980"
+                                            MaxWidth="1280"
                                             HorizontalAlignment="Left"
                                             Spacing="20">
                                     <Border Padding="20"
@@ -853,191 +853,304 @@
                                         </Grid>
                                     </Border>
 
-                                    <Grid ColumnDefinitions="*,*"
-                                          ColumnSpacing="14">
-                                        <Border Grid.Column="0"
+                                    <WrapPanel Orientation="Horizontal">
+                                        <StackPanel Width="760"
+                                                    Margin="0,0,16,16"
+                                                    Spacing="14">
+                                            <Grid ColumnDefinitions="*,*"
+                                                  ColumnSpacing="14">
+                                                <Border Grid.Column="0"
+                                                        Padding="18"
+                                                        CornerRadius="8"
+                                                        BorderThickness="1"
+                                                        BorderBrush="#3A3A3A">
+                                                    <StackPanel Spacing="12">
+                                                        <Grid ColumnDefinitions="*,Auto">
+                                                            <TextBlock Grid.Column="0"
+                                                                       FontSize="19"
+                                                                       FontWeight="SemiBold"
+                                                                       Text="Publishing" />
+                                                            <Button Grid.Column="1"
+                                                                    Command="{Binding ShowPublishingCommand}"
+                                                                    Content="Open" />
+                                                        </Grid>
+
+                                                        <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto"
+                                                              ColumnDefinitions="130,*"
+                                                              ColumnSpacing="12"
+                                                              RowSpacing="7">
+                                                            <TextBlock Grid.Row="0"
+                                                                       Text="Summary" />
+                                                            <TextBlock Grid.Row="0"
+                                                                       Grid.Column="1"
+                                                                       Text="{Binding PublishingSummaryStatus}" />
+
+                                                            <TextBlock Grid.Row="1"
+                                                                       Text="Description" />
+                                                            <TextBlock Grid.Row="1"
+                                                                       Grid.Column="1"
+                                                                       Text="{Binding PublishingDescriptionStatus}" />
+
+                                                            <TextBlock Grid.Row="2"
+                                                                       Text="Changelog" />
+                                                            <TextBlock Grid.Row="2"
+                                                                       Grid.Column="1"
+                                                                       Text="{Binding PublishingChangelogStatus}" />
+
+                                                            <TextBlock Grid.Row="3"
+                                                                       Text="Logo" />
+                                                            <TextBlock Grid.Row="3"
+                                                                       Grid.Column="1"
+                                                                       Text="{Binding PublishingLogoStatus}" />
+
+                                                            <TextBlock Grid.Row="4"
+                                                                       Text="Screenshots" />
+                                                            <TextBlock Grid.Row="4"
+                                                                       Grid.Column="1"
+                                                                       Text="{Binding PublishingScreenshotsStatus}" />
+                                                        </Grid>
+                                                    </StackPanel>
+                                                </Border>
+
+                                                <Border Grid.Column="1"
+                                                        Padding="18"
+                                                        CornerRadius="8"
+                                                        BorderThickness="1"
+                                                        BorderBrush="#3A3A3A">
+                                                    <StackPanel Spacing="12">
+                                                        <Grid ColumnDefinitions="*,Auto">
+                                                            <TextBlock Grid.Column="0"
+                                                                       FontSize="19"
+                                                                       FontWeight="SemiBold"
+                                                                       Text="CurseForge" />
+                                                            <Button Grid.Column="1"
+                                                                    Command="{Binding ShowCurseForgeCommand}"
+                                                                    Content="Open" />
+                                                        </Grid>
+
+                                                        <Grid RowDefinitions="Auto,Auto"
+                                                              ColumnDefinitions="130,*"
+                                                              ColumnSpacing="12"
+                                                              RowSpacing="7">
+                                                            <TextBlock Grid.Row="0"
+                                                                       Text="Data source" />
+                                                            <TextBlock Grid.Row="0"
+                                                                       Grid.Column="1"
+                                                                       TextWrapping="Wrap"
+                                                                       Text="{Binding CurseForgeDataSourceStatus}" />
+
+                                                            <TextBlock Grid.Row="1"
+                                                                       Text="Project" />
+                                                            <TextBlock Grid.Row="1"
+                                                                       Grid.Column="1"
+                                                                       TextWrapping="Wrap"
+                                                                       Text="{Binding ProjectDashboardCurseForgeStatus}" />
+                                                        </Grid>
+                                                    </StackPanel>
+                                                </Border>
+                                            </Grid>
+
+                                            <Border Padding="18"
+                                                    CornerRadius="8"
+                                                    BorderThickness="1"
+                                                    BorderBrush="#3A3A3A">
+                                                <StackPanel Spacing="12">
+                                                    <Grid ColumnDefinitions="*,Auto">
+                                                        <TextBlock Grid.Column="0"
+                                                                   FontSize="19"
+                                                                   FontWeight="SemiBold"
+                                                                   Text="Project" />
+                                                        <Button Grid.Column="1"
+                                                                Command="{Binding ShowExplorerCommand}"
+                                                                Content="Open Files" />
+                                                    </Grid>
+
+                                                    <Grid RowDefinitions="Auto,Auto,Auto"
+                                                          ColumnDefinitions="150,*"
+                                                          ColumnSpacing="16"
+                                                          RowSpacing="8">
+                                                        <TextBlock Grid.Row="0"
+                                                                   Text="Runtime addons" />
+                                                        <ItemsControl Grid.Row="0"
+                                                                      Grid.Column="1"
+                                                                      ItemsSource="{Binding CurrentRuntimeAddons}">
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate>
+                                                                    <TextBlock Text="{Binding}" />
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+
+                                                        <TextBlock Grid.Row="1"
+                                                                   Text="Components" />
+                                                        <TextBlock Grid.Row="1"
+                                                                   Grid.Column="1"
+                                                                   TextWrapping="Wrap"
+                                                                   Text="{Binding ProjectDashboardComponents}" />
+
+                                                        <TextBlock Grid.Row="2"
+                                                                   Text="Project directory" />
+                                                        <TextBlock Grid.Row="2"
+                                                                   Grid.Column="1"
+                                                                   Opacity="0.7"
+                                                                   TextWrapping="Wrap"
+                                                                   Text="{Binding CurrentProjectDirectory}" />
+                                                    </Grid>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <Border IsVisible="{Binding HasSelectedProjectTocMetadata}"
+                                                    Padding="18"
+                                                    CornerRadius="8"
+                                                    BorderThickness="1"
+                                                    BorderBrush="#3A3A3A">
+                                                <StackPanel Spacing="12">
+                                                    <TextBlock FontSize="19"
+                                                               FontWeight="SemiBold"
+                                                               Text="Addon metadata (.toc)" />
+
+                                                    <Grid RowDefinitions="Auto,Auto,Auto,Auto"
+                                                          ColumnDefinitions="150,*"
+                                                          ColumnSpacing="16"
+                                                          RowSpacing="8">
+                                                        <TextBlock Grid.Row="0"
+                                                                   Text="TOC file" />
+                                                        <TextBlock Grid.Row="0"
+                                                                   Grid.Column="1"
+                                                                   Text="{Binding SelectedProjectTocFile}" />
+
+                                                        <TextBlock Grid.Row="1"
+                                                                   Text="Notes" />
+                                                        <TextBlock Grid.Row="1"
+                                                                   Grid.Column="1"
+                                                                   TextWrapping="Wrap"
+                                                                   Text="{Binding SelectedProjectTocNotes}" />
+
+                                                        <TextBlock Grid.Row="2"
+                                                                   Text="Dependencies" />
+                                                        <TextBlock Grid.Row="2"
+                                                                   Grid.Column="1"
+                                                                   TextWrapping="Wrap"
+                                                                   Text="{Binding SelectedProjectTocDependencies}" />
+
+                                                        <TextBlock Grid.Row="3"
+                                                                   Text="Saved variables" />
+                                                        <TextBlock Grid.Row="3"
+                                                                   Grid.Column="1"
+                                                                   TextWrapping="Wrap"
+                                                                   Text="{Binding SelectedProjectTocSavedVariables}" />
+                                                    </Grid>
+                                                </StackPanel>
+                                            </Border>
+
+                                        </StackPanel>
+
+                                        <Border Width="420"
+                                                MinHeight="520"
+                                                Margin="0,0,0,16"
                                                 Padding="18"
                                                 CornerRadius="8"
                                                 BorderThickness="1"
                                                 BorderBrush="#3A3A3A">
                                             <StackPanel Spacing="12">
                                                 <Grid ColumnDefinitions="*,Auto">
-                                                    <TextBlock Grid.Column="0"
-                                                               FontSize="19"
-                                                               FontWeight="SemiBold"
-                                                               Text="Publishing" />
+                                                    <StackPanel Grid.Column="0"
+                                                                Spacing="3">
+                                                        <TextBlock FontSize="19"
+                                                                   FontWeight="SemiBold"
+                                                                   Text="Screenshots" />
+                                                        <TextBlock FontSize="12"
+                                                                   Opacity="0.65"
+                                                                   Text="{Binding PublishingScreenshotsStatus}" />
+                                                    </StackPanel>
                                                     <Button Grid.Column="1"
-                                                            Command="{Binding ShowPublishingCommand}"
-                                                            Content="Open" />
+                                                            VerticalAlignment="Center"
+                                                            Click="AddPublishingScreenshots_Click"
+                                                            Content="Add" />
                                                 </Grid>
 
-                                                <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto"
-                                                      ColumnDefinitions="130,*"
-                                                      ColumnSpacing="12"
-                                                      RowSpacing="7">
-                                                    <TextBlock Grid.Row="0"
-                                                               Text="Summary" />
-                                                    <TextBlock Grid.Row="0"
-                                                               Grid.Column="1"
-                                                               Text="{Binding PublishingSummaryStatus}" />
+                                                <Border IsVisible="{Binding HasNoProjectScreenshots}"
+                                                        Height="300"
+                                                        CornerRadius="6"
+                                                        BorderThickness="1"
+                                                        BorderBrush="#303030"
+                                                        Background="#10000000">
+                                                    <StackPanel HorizontalAlignment="Center"
+                                                                VerticalAlignment="Center"
+                                                                Spacing="6">
+                                                        <TextBlock HorizontalAlignment="Center"
+                                                                   FontSize="17"
+                                                                   FontWeight="SemiBold"
+                                                                   Text="No screenshots" />
+                                                        <TextBlock HorizontalAlignment="Center"
+                                                                   FontSize="12"
+                                                                   Opacity="0.6"
+                                                                   Text="Media/Screenshots/" />
+                                                    </StackPanel>
+                                                </Border>
 
-                                                    <TextBlock Grid.Row="1"
-                                                               Text="Description" />
-                                                    <TextBlock Grid.Row="1"
-                                                               Grid.Column="1"
-                                                               Text="{Binding PublishingDescriptionStatus}" />
+                                                <StackPanel IsVisible="{Binding HasProjectScreenshots}"
+                                                            Spacing="10">
+                                                    <ListBox MaxHeight="92"
+                                                             ItemsSource="{Binding ProjectScreenshots}"
+                                                             SelectedItem="{Binding SelectedProjectScreenshot}"
+                                                             ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                                                             ScrollViewer.VerticalScrollBarVisibility="Disabled">
+                                                        <ListBox.ItemsPanel>
+                                                            <ItemsPanelTemplate>
+                                                                <StackPanel Orientation="Horizontal" />
+                                                            </ItemsPanelTemplate>
+                                                        </ListBox.ItemsPanel>
+                                                        <ListBox.ItemTemplate>
+                                                            <DataTemplate x:DataType="vm:ProjectScreenshotItem">
+                                                                <Border Width="92"
+                                                                        Height="68"
+                                                                        Margin="2"
+                                                                        Padding="3"
+                                                                        CornerRadius="4"
+                                                                        BorderThickness="1"
+                                                                        BorderBrush="#303030">
+                                                                    <Image Stretch="UniformToFill"
+                                                                           Source="{Binding Image}" />
+                                                                </Border>
+                                                            </DataTemplate>
+                                                        </ListBox.ItemTemplate>
+                                                    </ListBox>
 
-                                                    <TextBlock Grid.Row="2"
-                                                               Text="Changelog" />
-                                                    <TextBlock Grid.Row="2"
-                                                               Grid.Column="1"
-                                                               Text="{Binding PublishingChangelogStatus}" />
+                                                    <Border Height="300"
+                                                            CornerRadius="6"
+                                                            BorderThickness="1"
+                                                            BorderBrush="#303030"
+                                                            Background="#10000000">
+                                                        <Image Margin="8"
+                                                               Stretch="Uniform"
+                                                               Source="{Binding SelectedProjectScreenshotImage}" />
+                                                    </Border>
 
-                                                    <TextBlock Grid.Row="3"
-                                                               Text="Logo" />
-                                                    <TextBlock Grid.Row="3"
-                                                               Grid.Column="1"
-                                                               Text="{Binding PublishingLogoStatus}" />
-
-                                                    <TextBlock Grid.Row="4"
-                                                               Text="Screenshots" />
-                                                    <TextBlock Grid.Row="4"
-                                                               Grid.Column="1"
-                                                               Text="{Binding PublishingScreenshotsStatus}" />
-                                                </Grid>
+                                                    <Grid ColumnDefinitions="Auto,*,Auto"
+                                                          ColumnSpacing="8">
+                                                        <Button Grid.Column="0"
+                                                                Width="34"
+                                                                IsEnabled="{Binding CanShowPreviousProjectScreenshot}"
+                                                                Command="{Binding ShowPreviousProjectScreenshotCommand}"
+                                                                Content="‹"
+                                                                ToolTip.Tip="Previous screenshot" />
+                                                        <TextBlock Grid.Column="1"
+                                                                   HorizontalAlignment="Center"
+                                                                   VerticalAlignment="Center"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   Text="{Binding SelectedProjectScreenshotName}" />
+                                                        <Button Grid.Column="2"
+                                                                Width="34"
+                                                                IsEnabled="{Binding CanShowNextProjectScreenshot}"
+                                                                Command="{Binding ShowNextProjectScreenshotCommand}"
+                                                                Content="›"
+                                                                ToolTip.Tip="Next screenshot" />
+                                                    </Grid>
+                                                </StackPanel>
                                             </StackPanel>
                                         </Border>
-
-                                        <Border Grid.Column="1"
-                                                Padding="18"
-                                                CornerRadius="8"
-                                                BorderThickness="1"
-                                                BorderBrush="#3A3A3A">
-                                            <StackPanel Spacing="12">
-                                                <Grid ColumnDefinitions="*,Auto">
-                                                    <TextBlock Grid.Column="0"
-                                                               FontSize="19"
-                                                               FontWeight="SemiBold"
-                                                               Text="CurseForge" />
-                                                    <Button Grid.Column="1"
-                                                            Command="{Binding ShowCurseForgeCommand}"
-                                                            Content="Open" />
-                                                </Grid>
-
-                                                <Grid RowDefinitions="Auto,Auto"
-                                                      ColumnDefinitions="130,*"
-                                                      ColumnSpacing="12"
-                                                      RowSpacing="7">
-                                                    <TextBlock Grid.Row="0"
-                                                               Text="Data source" />
-                                                    <TextBlock Grid.Row="0"
-                                                               Grid.Column="1"
-                                                               TextWrapping="Wrap"
-                                                               Text="{Binding CurseForgeDataSourceStatus}" />
-
-                                                    <TextBlock Grid.Row="1"
-                                                               Text="Project" />
-                                                    <TextBlock Grid.Row="1"
-                                                               Grid.Column="1"
-                                                               TextWrapping="Wrap"
-                                                               Text="{Binding ProjectDashboardCurseForgeStatus}" />
-                                                </Grid>
-                                            </StackPanel>
-                                        </Border>
-                                    </Grid>
-
-                                    <Border Padding="18"
-                                            CornerRadius="8"
-                                            BorderThickness="1"
-                                            BorderBrush="#3A3A3A">
-                                        <StackPanel Spacing="12">
-                                            <Grid ColumnDefinitions="*,Auto">
-                                                <TextBlock Grid.Column="0"
-                                                           FontSize="19"
-                                                           FontWeight="SemiBold"
-                                                           Text="Project" />
-                                                <Button Grid.Column="1"
-                                                        Command="{Binding ShowExplorerCommand}"
-                                                        Content="Open Files" />
-                                            </Grid>
-
-                                            <Grid RowDefinitions="Auto,Auto,Auto"
-                                                  ColumnDefinitions="150,*"
-                                                  ColumnSpacing="16"
-                                                  RowSpacing="8">
-                                                <TextBlock Grid.Row="0"
-                                                           Text="Runtime addons" />
-                                                <ItemsControl Grid.Row="0"
-                                                              Grid.Column="1"
-                                                              ItemsSource="{Binding CurrentRuntimeAddons}">
-                                                    <ItemsControl.ItemTemplate>
-                                                        <DataTemplate>
-                                                            <TextBlock Text="{Binding}" />
-                                                        </DataTemplate>
-                                                    </ItemsControl.ItemTemplate>
-                                                </ItemsControl>
-
-                                                <TextBlock Grid.Row="1"
-                                                           Text="Components" />
-                                                <TextBlock Grid.Row="1"
-                                                           Grid.Column="1"
-                                                           TextWrapping="Wrap"
-                                                           Text="{Binding ProjectDashboardComponents}" />
-
-                                                <TextBlock Grid.Row="2"
-                                                           Text="Project directory" />
-                                                <TextBlock Grid.Row="2"
-                                                           Grid.Column="1"
-                                                           Opacity="0.7"
-                                                           TextWrapping="Wrap"
-                                                           Text="{Binding CurrentProjectDirectory}" />
-                                            </Grid>
-                                        </StackPanel>
-                                    </Border>
-
-                                    <Border IsVisible="{Binding HasSelectedProjectTocMetadata}"
-                                            Padding="18"
-                                            CornerRadius="8"
-                                            BorderThickness="1"
-                                            BorderBrush="#3A3A3A">
-                                        <StackPanel Spacing="12">
-                                            <TextBlock FontSize="19"
-                                                       FontWeight="SemiBold"
-                                                       Text="Addon metadata (.toc)" />
-
-                                            <Grid RowDefinitions="Auto,Auto,Auto,Auto"
-                                                  ColumnDefinitions="150,*"
-                                                  ColumnSpacing="16"
-                                                  RowSpacing="8">
-                                                <TextBlock Grid.Row="0"
-                                                           Text="TOC file" />
-                                                <TextBlock Grid.Row="0"
-                                                           Grid.Column="1"
-                                                           Text="{Binding SelectedProjectTocFile}" />
-
-                                                <TextBlock Grid.Row="1"
-                                                           Text="Notes" />
-                                                <TextBlock Grid.Row="1"
-                                                           Grid.Column="1"
-                                                           TextWrapping="Wrap"
-                                                           Text="{Binding SelectedProjectTocNotes}" />
-
-                                                <TextBlock Grid.Row="2"
-                                                           Text="Dependencies" />
-                                                <TextBlock Grid.Row="2"
-                                                           Grid.Column="1"
-                                                           TextWrapping="Wrap"
-                                                           Text="{Binding SelectedProjectTocDependencies}" />
-
-                                                <TextBlock Grid.Row="3"
-                                                           Text="Saved variables" />
-                                                <TextBlock Grid.Row="3"
-                                                           Grid.Column="1"
-                                                           TextWrapping="Wrap"
-                                                           Text="{Binding SelectedProjectTocSavedVariables}" />
-                                            </Grid>
-                                        </StackPanel>
-                                    </Border>
+                                    </WrapPanel>
                                 </StackPanel>
                             </ScrollViewer>
 
