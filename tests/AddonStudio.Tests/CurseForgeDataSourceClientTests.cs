@@ -171,6 +171,12 @@ public sealed class CurseForgeDataSourceClientTests
         Assert.Equal(
             101,
             project.PrimaryCategoryId);
+        Assert.Equal(
+            "Bags & Inventory",
+            project.PrimaryCategory?.Name);
+        Assert.Equal(
+            "bags-inventory",
+            project.PrimaryCategory?.Slug);
         Assert.Contains(
             101,
             project.CategoryIds);
