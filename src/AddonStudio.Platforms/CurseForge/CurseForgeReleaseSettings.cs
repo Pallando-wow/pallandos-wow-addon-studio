@@ -1,5 +1,3 @@
-using System.Text.Json.Serialization;
-
 namespace AddonStudio.Platforms.CurseForge;
 
 public sealed record CurseForgeReleaseSettings
@@ -13,7 +11,6 @@ public sealed record CurseForgeReleaseSettings
 
     public IReadOnlyList<int> GameVersionIds { get; init; } = [];
 
-    [JsonConverter(typeof(JsonStringEnumConverter<CurseForgeFileReleaseType>))]
     public CurseForgeFileReleaseType ReleaseType { get; init; } =
         CurseForgeFileReleaseType.Release;
 
