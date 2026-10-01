@@ -244,9 +244,9 @@ public sealed class CurseForgeUploadApiClientTests
                         CurseForgeChangelogMarkupType.Markdown,
                         [12919, 13001],
                         CurseForgeFileReleaseType.Release,
-                        4,
+                        packageBytes.Length,
                         false,
-                        new string('a', 64)));
+                        packageSha256)));
 
             Assert.Equal(
                 20402,
