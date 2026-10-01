@@ -232,6 +232,137 @@ public sealed class ReleasePackagingTests
     }
 
     [Fact]
+    public async Task PackageBuilder_IsDeterministicForUnchangedInput()
+    {
+        using var temp =
+            new TemporaryProject();
+
+        temp.CreateRuntimeAddon(
+            "ForeverBag",
+            """
+            ## Interface: 16001
+            ## Version: 1.1.0
+            ForeverBag.lua
+            """);
+
+        var builder =
+            new ReleasePackageBuilder();
+
+        var first =
+            await builder.BuildAsync(
+                new ReleasePackageRequest(
+                    temp.Path,
+                    CreateManifest(),
+                    "1.1.0"));
+
+        var firstBytes =
+            await File.ReadAllBytesAsync(
+                first.PackagePath);
+
+        var second =
+            await builder.BuildAsync(
+                new ReleasePackageRequest(
+                    temp.Path,
+                    CreateManifest(),
+                    "1.1.0"));
+
+        var secondBytes =
+            await File.ReadAllBytesAsync(
+                second.PackagePath);
+
+        Assert.Equal(
+            firstBytes,
+            secondBytes);
+    }
+
+    [Fact]
+    public async Task Workflow_DoesNotBuildWhenPreparationFails()
+    {
+        using var temp =
+            new TemporaryProject();
+
+        temp.CreateRuntimeAddon(
+            "ForeverBag",
+            """
+            ## Interface: 16001
+            ## Version: 1.1.0
+            ForeverBag.lua
+            """);
+
+        temp.CreateProjectPageOnly();
+
+        var workflow =
+            new ReleaseWorkflowService(
+                new ReleasePreparationService(),
+                new ReleasePackageBuilder());
+
+        var result =
+            await workflow.PrepareAsync(
+                new ReleasePreparationRequest(
+                    temp.Path,
+                    CreateManifest(),
+                    "1.1.0",
+                    CurseForgeProjectVerified: true),
+                buildPackage: true);
+
+        Assert.False(
+            result.Preparation.IsReady);
+        Assert.False(
+            result.PackageCreated);
+
+        Assert.False(
+            File.Exists(
+                System.IO.Path.Combine(
+                    temp.Path,
+                    "Release",
+                    "Versions",
+                    "1.1.0",
+                    "ForeverBag-1.1.0.zip")));
+    }
+
+    [Fact]
+    public async Task Workflow_BuildsPackageWhenPreparationIsReady()
+    {
+        using var temp =
+            new TemporaryProject();
+
+        temp.CreateRuntimeAddon(
+            "ForeverBag",
+            """
+            ## Interface: 16001
+            ## Version: 1.1.0
+            ForeverBag.lua
+            """);
+
+        temp.CreatePublishingContent(
+            "1.1.0");
+
+        var workflow =
+            new ReleaseWorkflowService(
+                new ReleasePreparationService(),
+                new ReleasePackageBuilder());
+
+        var result =
+            await workflow.PrepareAsync(
+                new ReleasePreparationRequest(
+                    temp.Path,
+                    CreateManifest(),
+                    "1.1.0",
+                    CurseForgeProjectVerified: true),
+                buildPackage: true);
+
+        Assert.True(
+            result.Preparation.IsReady);
+        Assert.True(
+            result.PackageCreated);
+        Assert.NotNull(
+            result.Package);
+        Assert.True(
+            File.Exists(
+                result.Package.PackagePath));
+    }
+
+    [Fact]
     public async Task PackageBuilder_UsesConfiguredPackageName()
     {
         using var temp =
