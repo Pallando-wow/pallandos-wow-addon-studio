@@ -2,15 +2,21 @@ namespace AddonStudio.Packaging.Releases;
 
 public sealed record ReleaseWorkflowResult(
     ReleasePreparationSnapshot Preparation,
-    ReleasePackageResult? Package)
+    ReleasePackageResult? Package,
+    string? ArtifactManifestPath)
 {
     public bool PackageCreated =>
         Package is not null;
+
+    public bool ArtifactManifestCreated =>
+        !string.IsNullOrWhiteSpace(
+            ArtifactManifestPath);
 }
 
 public sealed class ReleaseWorkflowService(
     ReleasePreparationService preparationService,
-    ReleasePackageBuilder packageBuilder)
+    ReleasePackageBuilder packageBuilder,
+    ReleaseArtifactManifestService artifactManifestService)
 {
     public async Task<ReleaseWorkflowResult> PrepareAsync(
         ReleasePreparationRequest request,
@@ -28,6 +34,7 @@ public sealed class ReleaseWorkflowService(
         {
             return new ReleaseWorkflowResult(
                 preparation,
+                null,
                 null);
         }
 
@@ -39,8 +46,16 @@ public sealed class ReleaseWorkflowService(
                     request.Version),
                 cancellationToken);
 
+        var artifactManifestPath =
+            await artifactManifestService.WriteAsync(
+                request.ProjectDirectory,
+                request.Version,
+                package,
+                cancellationToken);
+
         return new ReleaseWorkflowResult(
             preparation,
-            package);
+            package,
+            artifactManifestPath);
     }
 }
