@@ -103,13 +103,22 @@ public sealed class WowTestInstallPlanner(
                     tocPath,
                     cancellationToken);
 
+            var targetDirectory =
+                Path.Combine(
+                    wowAddOnsDirectory,
+                    addonName);
+
+            await EnsureInstalledVersionIsNotNewerAsync(
+                addonName,
+                toc.Version,
+                targetDirectory,
+                cancellationToken);
+
             addons.Add(
                 new WowTestAddonDeployment(
                     addonName,
                     sourceDirectory,
-                    Path.Combine(
-                        wowAddOnsDirectory,
-                        addonName),
+                    targetDirectory,
                     toc.SavedVariables,
                     toc.SavedVariablesPerCharacter));
         }
@@ -165,6 +174,128 @@ public sealed class WowTestInstallPlanner(
             savedVariablesDirectory,
             requestedBackupRoot,
             savedVariablesFiles);
+    }
+
+    private async Task EnsureInstalledVersionIsNotNewerAsync(
+        string addonName,
+        string? sourceVersion,
+        string targetDirectory,
+        CancellationToken cancellationToken)
+    {
+        var installedTocPath =
+            Path.Combine(
+                targetDirectory,
+                addonName + ".toc");
+
+        if (!File.Exists(
+                installedTocPath))
+        {
+            return;
+        }
+
+        var installedToc =
+            await tocDocumentReader.ReadAsync(
+                installedTocPath,
+                cancellationToken);
+
+        var sourceComparableVersion =
+            RequireComparableVersion(
+                sourceVersion,
+                $"Project addon '{addonName}'");
+
+        var installedComparableVersion =
+            RequireComparableVersion(
+                installedToc.Version,
+                $"Installed addon '{addonName}'");
+
+        if (CompareVersions(
+                installedComparableVersion,
+                sourceComparableVersion) <= 0)
+        {
+            return;
+        }
+
+        throw new InvalidOperationException(
+            $"Installed addon '{addonName}' has newer version '{installedToc.Version}' than project version '{sourceVersion}'. " +
+            "Installation stopped to avoid overwriting a newer addon.");
+    }
+
+    private static int[] RequireComparableVersion(
+        string? version,
+        string label)
+    {
+        if (string.IsNullOrWhiteSpace(
+                version))
+        {
+            throw new InvalidDataException(
+                $"{label} does not declare a Version in its .toc file.");
+        }
+
+        var value =
+            version.Trim();
+
+        if (value.Length > 1 &&
+            (value[0] == 'v' ||
+             value[0] == 'V') &&
+            char.IsDigit(
+                value[1]))
+        {
+            value =
+                value[1..];
+        }
+
+        var parts =
+            value.Split(
+                '.',
+                StringSplitOptions.None);
+
+        if (parts.Length is < 1 or > 4)
+        {
+            throw new InvalidDataException(
+                $"{label} version '{version}' cannot be compared safely.");
+        }
+
+        var result =
+            new int[4];
+
+        for (var index = 0;
+             index < parts.Length;
+             index++)
+        {
+            if (parts[index].Length == 0 ||
+                !parts[index].All(
+                    char.IsDigit) ||
+                !int.TryParse(
+                    parts[index],
+                    out result[index]))
+            {
+                throw new InvalidDataException(
+                    $"{label} version '{version}' cannot be compared safely.");
+            }
+        }
+
+        return result;
+    }
+
+    private static int CompareVersions(
+        IReadOnlyList<int> left,
+        IReadOnlyList<int> right)
+    {
+        for (var index = 0;
+             index < 4;
+             index++)
+        {
+            var comparison =
+                left[index].CompareTo(
+                    right[index]);
+
+            if (comparison != 0)
+            {
+                return comparison;
+            }
+        }
+
+        return 0;
     }
 
     private static void RequireWowAddOnsDirectory(

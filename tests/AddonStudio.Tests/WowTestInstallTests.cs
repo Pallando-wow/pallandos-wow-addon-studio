@@ -83,6 +83,180 @@ public sealed class WowTestInstallTests
     }
 
     [Fact]
+    public async Task Planner_RejectsInstalledAddonWithNewerVersion()
+    {
+        using var environment =
+            new TemporaryEnvironment();
+
+        environment.CreateManagedProject();
+        environment.CreateRuntimeAddon(
+            "ForeverBag",
+            """
+            ## Interface: 16001
+            ## Version: 1.1.0
+            ForeverBag.lua
+            """,
+            ("ForeverBag.lua", "-- project"));
+
+        var installedDirectory =
+            Directory.CreateDirectory(
+                System.IO.Path.Combine(
+                    environment.WowAddOnsDirectory,
+                    "ForeverBag"))
+                .FullName;
+
+        File.WriteAllText(
+            System.IO.Path.Combine(
+                installedDirectory,
+                "ForeverBag.toc"),
+            """
+            ## Interface: 16001
+            ## Version: 1.2.0
+            ForeverBag.lua
+            """);
+
+        File.WriteAllText(
+            System.IO.Path.Combine(
+                installedDirectory,
+                "ForeverBag.lua"),
+            "-- installed newer");
+
+        var planner =
+            new WowTestInstallPlanner(
+                new TocDocumentReader(),
+                environment.BackupRoot);
+
+        var exception =
+            await Assert.ThrowsAsync<
+                InvalidOperationException>(
+                () => planner.CreateAsync(
+                    new WowTestInstallRequest(
+                        environment.ProjectDirectory,
+                        environment.WowAddOnsDirectory,
+                        ["ForeverBag"])));
+
+        Assert.Contains(
+            "newer version '1.2.0'",
+            exception.Message,
+            StringComparison.OrdinalIgnoreCase);
+
+        Assert.Equal(
+            "-- installed newer",
+            File.ReadAllText(
+                System.IO.Path.Combine(
+                    installedDirectory,
+                    "ForeverBag.lua")));
+    }
+
+    [Theory]
+    [InlineData("1.1.0", "1.1.0")]
+    [InlineData("1.0.9", "1.1.0")]
+    [InlineData("1.1", "1.1.0")]
+    [InlineData("v1.1.0", "1.1.0")]
+    public async Task Planner_AllowsInstalledVersionThatIsNotNewer(
+        string installedVersion,
+        string projectVersion)
+    {
+        using var environment =
+            new TemporaryEnvironment();
+
+        environment.CreateManagedProject();
+        environment.CreateRuntimeAddon(
+            "ForeverBag",
+            $"""
+            ## Interface: 16001
+            ## Version: {projectVersion}
+            ForeverBag.lua
+            """,
+            ("ForeverBag.lua", "-- project"));
+
+        var installedDirectory =
+            Directory.CreateDirectory(
+                System.IO.Path.Combine(
+                    environment.WowAddOnsDirectory,
+                    "ForeverBag"))
+                .FullName;
+
+        File.WriteAllText(
+            System.IO.Path.Combine(
+                installedDirectory,
+                "ForeverBag.toc"),
+            $"""
+            ## Interface: 16001
+            ## Version: {installedVersion}
+            ForeverBag.lua
+            """);
+
+        var planner =
+            new WowTestInstallPlanner(
+                new TocDocumentReader(),
+                environment.BackupRoot);
+
+        var plan =
+            await planner.CreateAsync(
+                new WowTestInstallRequest(
+                    environment.ProjectDirectory,
+                    environment.WowAddOnsDirectory,
+                    ["ForeverBag"]));
+
+        Assert.Single(
+            plan.Addons);
+    }
+
+    [Fact]
+    public async Task Planner_RejectsUncomparableInstalledVersion()
+    {
+        using var environment =
+            new TemporaryEnvironment();
+
+        environment.CreateManagedProject();
+        environment.CreateRuntimeAddon(
+            "ForeverBag",
+            """
+            ## Interface: 16001
+            ## Version: 1.1.0
+            ForeverBag.lua
+            """,
+            ("ForeverBag.lua", "-- project"));
+
+        var installedDirectory =
+            Directory.CreateDirectory(
+                System.IO.Path.Combine(
+                    environment.WowAddOnsDirectory,
+                    "ForeverBag"))
+                .FullName;
+
+        File.WriteAllText(
+            System.IO.Path.Combine(
+                installedDirectory,
+                "ForeverBag.toc"),
+            """
+            ## Interface: 16001
+            ## Version: development
+            ForeverBag.lua
+            """);
+
+        var planner =
+            new WowTestInstallPlanner(
+                new TocDocumentReader(),
+                environment.BackupRoot);
+
+        var exception =
+            await Assert.ThrowsAsync<
+                InvalidDataException>(
+                () => planner.CreateAsync(
+                    new WowTestInstallRequest(
+                        environment.ProjectDirectory,
+                        environment.WowAddOnsDirectory,
+                        ["ForeverBag"])));
+
+        Assert.Contains(
+            "cannot be compared safely",
+            exception.Message,
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task CleanInstall_BacksUpAndDeletesOnlyDeclaredSavedVariablesScope()
     {
         using var environment =
