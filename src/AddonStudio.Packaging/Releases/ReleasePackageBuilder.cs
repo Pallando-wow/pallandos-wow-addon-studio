@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Security.Cryptography;
 using AddonStudio.Core.Projects;
 
 namespace AddonStudio.Packaging.Releases;
@@ -68,30 +69,32 @@ public sealed class ReleasePackageBuilder
                 releaseDirectory,
                 packageFileName);
 
-        if (File.Exists(packagePath))
-        {
-            File.Delete(packagePath);
-        }
+        var temporaryPackagePath =
+            packagePath +
+            ".tmp-" +
+            Guid.NewGuid().ToString("N");
 
         var entries =
             new List<string>();
 
-        await using (
-            var stream = new FileStream(
-                packagePath,
-                FileMode.CreateNew,
-                FileAccess.ReadWrite,
-                FileShare.None,
-                81920,
-                useAsync: true))
-        using (
-            var archive = new ZipArchive(
-                stream,
-                ZipArchiveMode.Create,
-                leaveOpen: false))
+        try
         {
-            foreach (var addon in runtimeAddons)
+            await using (
+                var stream = new FileStream(
+                    temporaryPackagePath,
+                    FileMode.CreateNew,
+                    FileAccess.ReadWrite,
+                    FileShare.None,
+                    81920,
+                    useAsync: true))
+            using (
+                var archive = new ZipArchive(
+                    stream,
+                    ZipArchiveMode.Create,
+                    leaveOpen: false))
             {
+                foreach (var addon in runtimeAddons)
+                {
                 cancellationToken.ThrowIfCancellationRequested();
 
                 var addonDirectory =
@@ -163,15 +166,28 @@ public sealed class ReleasePackageBuilder
                         entryName);
                 }
             }
+
+            if (entries.Count == 0)
+            {
+                throw new InvalidOperationException(
+                    "The release package would be empty.");
+            }
+
+            File.Move(
+                temporaryPackagePath,
+                packagePath,
+                overwrite: true);
         }
-
-        if (entries.Count == 0)
+        catch
         {
-            File.Delete(
-                packagePath);
+            if (File.Exists(
+                    temporaryPackagePath))
+            {
+                File.Delete(
+                    temporaryPackagePath);
+            }
 
-            throw new InvalidOperationException(
-                "The release package would be empty.");
+            throw;
         }
 
         var size =
@@ -179,10 +195,16 @@ public sealed class ReleasePackageBuilder
                 packagePath)
                 .Length;
 
+        var sha256 =
+            await ComputeSha256Async(
+                packagePath,
+                cancellationToken);
+
         return new ReleasePackageResult(
             packagePath,
             packageFileName,
             size,
+            sha256,
             entries);
     }
 
@@ -263,15 +285,15 @@ public sealed class ReleasePackageBuilder
             Path.GetFileNameWithoutExtension(
                 baseName.Trim());
 
-        var invalidCharacters =
-            Path.GetInvalidFileNameChars();
+        const string portableInvalidCharacters =
+            "<>:"/\\|?*";
 
         var safeBaseName =
             new string(
                 baseName
                     .Select(character =>
-                        invalidCharacters.Contains(
-                            character)
+                        char.IsControl(character) ||
+                        portableInvalidCharacters.Contains(character)
                             ? '-'
                             : character)
                     .ToArray())
@@ -319,6 +341,29 @@ public sealed class ReleasePackageBuilder
         path.Replace(
             '\\',
             '/');
+
+    private static async Task<string> ComputeSha256Async(
+        string path,
+        CancellationToken cancellationToken)
+    {
+        await using var stream =
+            new FileStream(
+                path,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                81920,
+                useAsync: true);
+
+        var hash =
+            await SHA256.HashDataAsync(
+                stream,
+                cancellationToken);
+
+        return Convert.ToHexString(
+            hash)
+            .ToLowerInvariant();
+    }
 
     private static string RequireManagedProjectDirectory(
         string? projectDirectory)
