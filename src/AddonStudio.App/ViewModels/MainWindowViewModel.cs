@@ -1984,7 +1984,7 @@ public partial class MainWindowViewModel(
             StatusMessage =
                 message;
             InstallFeedbackMessage =
-                $"Installation fehlgeschlagen: {message}";
+                message;
             InstallFeedbackIsError =
                 true;
             return;
@@ -2020,7 +2020,7 @@ public partial class MainWindowViewModel(
             catch (Exception exception)
             {
                 InstallFeedbackMessage =
-                    $"Installation fehlgeschlagen: {exception.Message}";
+                    exception.Message;
                 InstallFeedbackIsError =
                     true;
                 throw;
@@ -2644,6 +2644,13 @@ public partial class MainWindowViewModel(
             ClearMarkdownDocument();
             ClearPublishingWorkspace();
         }
+
+        InstallFeedbackMessage =
+            string.Empty;
+        InstallFeedbackIsSuccess =
+            false;
+        InstallFeedbackIsError =
+            false;
 
         currentProject = project;
         CurrentProjectName = project.Name;
