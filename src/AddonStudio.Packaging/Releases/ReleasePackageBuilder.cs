@@ -5,6 +5,17 @@ namespace AddonStudio.Packaging.Releases;
 
 public sealed class ReleasePackageBuilder
 {
+    private static readonly DateTimeOffset
+        DeterministicEntryTimestamp =
+            new(
+                1980,
+                1,
+                1,
+                0,
+                0,
+                0,
+                TimeSpan.Zero);
+
     public async Task<ReleasePackageResult> BuildAsync(
         ReleasePackageRequest request,
         CancellationToken cancellationToken = default)
@@ -128,6 +139,9 @@ public sealed class ReleasePackageBuilder
                         archive.CreateEntry(
                             entryName,
                             CompressionLevel.Optimal);
+
+                    entry.LastWriteTime =
+                        DeterministicEntryTimestamp;
 
                     await using var input =
                         new FileStream(
