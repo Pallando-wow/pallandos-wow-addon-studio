@@ -110,3 +110,46 @@ public sealed record CurseForgeUploadPlan(
     long FileLength,
     bool IsMarkedForManualRelease,
     string ArtifactSha256);
+
+
+public sealed record CurseForgeUploadGameVersion(
+    int Id,
+    int GameVersionTypeId,
+    string Name,
+    string Slug);
+
+public sealed record CurseForgeUploadResult(
+    int FileId);
+
+public static class CurseForgeUploadWireValues
+{
+    public static string ToWireValue(
+        this CurseForgeFileReleaseType value) =>
+        value switch
+        {
+            CurseForgeFileReleaseType.Release =>
+                "release",
+            CurseForgeFileReleaseType.Beta =>
+                "beta",
+            CurseForgeFileReleaseType.Alpha =>
+                "alpha",
+            _ =>
+                throw new ArgumentOutOfRangeException(
+                    nameof(value))
+        };
+
+    public static string ToWireValue(
+        this CurseForgeChangelogMarkupType value) =>
+        value switch
+        {
+            CurseForgeChangelogMarkupType.Text =>
+                "text",
+            CurseForgeChangelogMarkupType.Html =>
+                "html",
+            CurseForgeChangelogMarkupType.Markdown =>
+                "markdown",
+            _ =>
+                throw new ArgumentOutOfRangeException(
+                    nameof(value))
+        };
+}
