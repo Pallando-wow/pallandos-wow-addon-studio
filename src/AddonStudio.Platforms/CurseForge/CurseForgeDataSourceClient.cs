@@ -71,6 +71,84 @@ public sealed class CurseForgeDataSourceClient
             categories);
     }
 
+    public async Task<CurseForgeGameVersionCatalog>
+        LoadGameVersionCatalogAsync(
+            string apiKey,
+            int gameId,
+            CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(apiKey);
+
+        if (gameId <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(gameId));
+        }
+
+        var normalizedApiKey =
+            apiKey.Trim();
+
+        var typeResponse =
+            await GetAsync<
+                ApiResponse<GameVersionTypeDto>>(
+                $"v1/games/{gameId}/version-types",
+                normalizedApiKey,
+                cancellationToken);
+
+        var versionsResponse =
+            await GetAsync<
+                GameVersionsDetailedResponse>(
+                $"v2/games/{gameId}/versions",
+                normalizedApiKey,
+                cancellationToken);
+
+        var types =
+            typeResponse.Data
+                .Select(type =>
+                    new CurseForgeGameVersionType(
+                        type.Id,
+                        type.GameId,
+                        type.Name ?? string.Empty,
+                        type.Slug ?? string.Empty))
+                .OrderBy(type =>
+                    type.Name,
+                    StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+        var typeLookup =
+            types.ToDictionary(
+                type => type.Id);
+
+        var versions =
+            versionsResponse.Data
+                .SelectMany(group =>
+                    group.Versions.Select(version =>
+                    {
+                        typeLookup.TryGetValue(
+                            group.Type,
+                            out var type);
+
+                        return new CurseForgeGameVersion(
+                            version.Id,
+                            version.Name ?? string.Empty,
+                            version.Slug ?? string.Empty,
+                            group.Type,
+                            type?.Name ?? $"Type {group.Type}",
+                            type?.Slug ?? string.Empty);
+                    }))
+                .OrderBy(version =>
+                    version.TypeName,
+                    StringComparer.OrdinalIgnoreCase)
+                .ThenByDescending(version =>
+                    version.Name,
+                    StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+        return new CurseForgeGameVersionCatalog(
+            types,
+            versions);
+    }
+
     public async Task<CurseForgeProject> GetProjectAsync(
         string apiKey,
         int projectId,
@@ -289,6 +367,40 @@ public sealed class CurseForgeDataSourceClient
         public int PrimaryCategoryId { get; init; }
 
         public List<CategoryDto> Categories { get; init; } = [];
+    }
+
+    private sealed class GameVersionTypeDto
+    {
+        public int Id { get; init; }
+
+        public int GameId { get; init; }
+
+        public string? Name { get; init; }
+
+        public string? Slug { get; init; }
+    }
+
+    private sealed class GameVersionsDetailedResponse
+    {
+        public List<GameVersionsDetailedGroupDto>
+            Data { get; init; } = [];
+    }
+
+    private sealed class GameVersionsDetailedGroupDto
+    {
+        public int Type { get; init; }
+
+        public List<GameVersionDetailedDto>
+            Versions { get; init; } = [];
+    }
+
+    private sealed class GameVersionDetailedDto
+    {
+        public int Id { get; init; }
+
+        public string? Slug { get; init; }
+
+        public string? Name { get; init; }
     }
 
     private sealed class GameDto
