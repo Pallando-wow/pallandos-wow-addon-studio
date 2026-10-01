@@ -71,6 +71,19 @@
                                   Height="16"
                                   Data="F0 M12,4 A8,8 0 1 1 12,20 A8,8 0 1 1 12,4 Z M12,6 A6,6 0 1 0 12,18 A6,6 0 1 0 12,6 Z M12,9 A3,3 0 1 1 12,15 A3,3 0 1 1 12,9 Z" />
                     </Button>
+                    <Button Width="30"
+                            Height="30"
+                            Padding="0"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center"
+                            IsVisible="{Binding HasCurrentProject}"
+                            IsEnabled="{Binding HasCurrentProject}"
+                            Command="{Binding InstallForTestingCommand}"
+                            ToolTip.Tip="Install current project for testing">
+                        <PathIcon Width="16"
+                                  Height="16"
+                                  Data="M11,4 L13,4 L13,13 L16.5,9.5 L18,11 L12,17 L6,11 L7.5,9.5 L11,13 Z M5,18 L19,18 L19,20 L5,20 Z" />
+                    </Button>
                 </StackPanel>
 
                 <StackPanel Grid.Column="3"

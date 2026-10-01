@@ -8,6 +8,7 @@ using AddonStudio.Core.Projects;
 using AddonStudio.Core.Publishing;
 using AddonStudio.Media;
 using AddonStudio.Platforms.CurseForge;
+using AddonStudio.Wow.Deployment;
 using AddonStudio.Wow.Toc;
 using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -114,7 +115,8 @@ public partial class MainWindowViewModel(
     PublishingContentService publishingContentService,
     ProjectMediaService projectMediaService,
     TocDocumentReader tocDocumentReader,
-    IPallandoCollectorReader pallandoCollectorReader) : ViewModelBase
+    IPallandoCollectorReader pallandoCollectorReader,
+    WowTestInstallCoordinatorService wowTestInstallCoordinatorService) : ViewModelBase
 {
     private const string CurseForgeApiKeySecretName =
         "curseforge-api-key";
@@ -365,6 +367,7 @@ public partial class MainWindowViewModel(
         ProjectMediaService projectMediaService,
         TocDocumentReader tocDocumentReader,
         IPallandoCollectorReader pallandoCollectorReader,
+        WowTestInstallCoordinatorService wowTestInstallCoordinatorService,
         bool initialize = true)
         : this(
             addonProjectService,
@@ -378,7 +381,8 @@ public partial class MainWindowViewModel(
             publishingContentService,
             projectMediaService,
             tocDocumentReader,
-            pallandoCollectorReader)
+            pallandoCollectorReader,
+            wowTestInstallCoordinatorService)
     {
         var settings = settingsStore.Load();
 
@@ -1943,6 +1947,46 @@ public partial class MainWindowViewModel(
         IsImportCollectorAction = true;
         HasActionTab = true;
         WorkspaceTabIndex = 1;
+    }
+
+    [RelayCommand]
+    private async Task InstallForTestingAsync()
+    {
+        if (SetupRequired)
+        {
+            ShowSettings();
+            return;
+        }
+
+        if (currentProject is null ||
+            string.IsNullOrWhiteSpace(
+                CurrentProjectDirectory))
+        {
+            StatusMessage =
+                "Open a project before installing it for testing.";
+            return;
+        }
+
+        await RunOperationAsync(async () =>
+        {
+            var settings =
+                settingsStore.Load();
+
+            var result =
+                await wowTestInstallCoordinatorService.InstallAsync(
+                    CurrentProjectDirectory,
+                    currentProject.Manifest,
+                    settings,
+                    cleanTest: false);
+
+            var installedAddons =
+                string.Join(
+                    ", ",
+                    result.InstalledAddons);
+
+            StatusMessage =
+                $"Installed for testing: {installedAddons}. SavedVariables kept.";
+        });
     }
 
     [RelayCommand]
