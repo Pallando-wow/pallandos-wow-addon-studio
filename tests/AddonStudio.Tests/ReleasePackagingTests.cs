@@ -48,6 +48,38 @@ public sealed class ReleasePackagingTests
     }
 
     [Fact]
+    public void Preparation_RejectsVersionThatIsNotPortable()
+    {
+        using var temp =
+            new TemporaryProject();
+
+        temp.CreateRuntimeAddon(
+            "ForeverBag",
+            """
+            ## Interface: 16001
+            ## Version: 1:1.0
+            ForeverBag.lua
+            """);
+
+        temp.CreateProjectPageOnly();
+
+        var snapshot =
+            new ReleasePreparationService()
+                .Inspect(
+                    new ReleasePreparationRequest(
+                        temp.Path,
+                        CreateManifest(),
+                        "1:1.0",
+                        CurseForgeProjectVerified: true));
+
+        Assert.Contains(
+            snapshot.Issues,
+            issue =>
+                issue.Code ==
+                "RELEASE_VERSION_INVALID");
+    }
+
+    [Fact]
     public void Preparation_RejectsMissingVersionedChangelog()
     {
         using var temp =
@@ -449,6 +481,45 @@ public sealed class ReleasePackagingTests
                 issue.Contains(
                     "SHA-256",
                     StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task ArtifactVerification_RejectsEscapingPackageFileName()
+    {
+        using var temp =
+            new TemporaryProject();
+
+        var versionDirectory =
+            Directory.CreateDirectory(
+                System.IO.Path.Combine(
+                    temp.Path,
+                    "Release",
+                    "Versions",
+                    "1.1.0"))
+                .FullName;
+
+        await File.WriteAllTextAsync(
+            System.IO.Path.Combine(
+                versionDirectory,
+                ReleaseArtifactManifestService.FileName),
+            """
+            {
+              "schemaVersion": 1,
+              "version": "1.1.0",
+              "packageFileName": "../outside.zip",
+              "sizeBytes": 0,
+              "sha256": "00",
+              "entries": []
+            }
+            """);
+
+        var service =
+            new ReleaseArtifactManifestService();
+
+        await Assert.ThrowsAsync<InvalidDataException>(
+            () => service.VerifyAsync(
+                temp.Path,
+                "1.1.0"));
     }
 
     [Fact]
