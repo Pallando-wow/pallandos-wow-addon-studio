@@ -17,6 +17,7 @@ public sealed class WowTestInstallWorkflowTests
             "ForeverBag",
             """
             ## Interface: 16001
+            ## Version: 1.1.0
             ## SavedVariables: ForeverBagDB
             ForeverBag.lua
             """,
@@ -28,6 +29,16 @@ public sealed class WowTestInstallWorkflowTests
                     environment.WowAddOnsDirectory,
                     "ForeverBag"))
                 .FullName;
+
+        File.WriteAllText(
+            System.IO.Path.Combine(
+                installedDirectory,
+                "ForeverBag.toc"),
+            """
+            ## Interface: 16001
+            ## Version: 1.0.0
+            ForeverBag.lua
+            """);
 
         var installedFile =
             System.IO.Path.Combine(
@@ -100,6 +111,7 @@ public sealed class WowTestInstallWorkflowTests
             "ForeverBag",
             """
             ## Interface: 16001
+            ## Version: 1.1.0
             ## SavedVariables: ForeverBagDB
             ## SavedVariablesPerCharacter: ForeverBagCharacterDB
             ForeverBag.lua
@@ -111,6 +123,7 @@ public sealed class WowTestInstallWorkflowTests
             "ForeverMail",
             """
             ## Interface: 16001
+            ## Version: 1.1.0
             ## SavedVariables: ForeverMailDB
             ForeverMail.lua
             """,
@@ -122,6 +135,16 @@ public sealed class WowTestInstallWorkflowTests
                     environment.WowAddOnsDirectory,
                     "ForeverBag"))
                 .FullName;
+
+        File.WriteAllText(
+            System.IO.Path.Combine(
+                oldBagDirectory,
+                "ForeverBag.toc"),
+            """
+            ## Interface: 16001
+            ## Version: 1.0.0
+            ForeverBag.lua
+            """);
 
         File.WriteAllText(
             System.IO.Path.Combine(
@@ -141,6 +164,16 @@ public sealed class WowTestInstallWorkflowTests
                     environment.WowAddOnsDirectory,
                     "ForeverMail"))
                 .FullName;
+
+        File.WriteAllText(
+            System.IO.Path.Combine(
+                oldMailDirectory,
+                "ForeverMail.toc"),
+            """
+            ## Interface: 16001
+            ## Version: 1.0.0
+            ForeverMail.lua
+            """);
 
         File.WriteAllText(
             System.IO.Path.Combine(
@@ -261,6 +294,107 @@ public sealed class WowTestInstallWorkflowTests
                 System.IO.Path.Combine(
                     result.SavedVariablesBackupDirectory!,
                     "SavedVariables",
+                    "ForeverMail.lua")));
+    }
+
+    [Fact]
+    public async Task Workflow_BlocksAllRuntimeAddonsWhenOneInstalledVersionIsNewer()
+    {
+        using var environment =
+            new TemporaryEnvironment();
+
+        environment.CreateManagedProject();
+
+        environment.CreateRuntimeAddon(
+            "ForeverBag",
+            """
+            ## Interface: 16001
+            ## Version: 1.1.0
+            ForeverBag.lua
+            """,
+            ("ForeverBag.lua", "-- bag new"));
+
+        environment.CreateRuntimeAddon(
+            "ForeverMail",
+            """
+            ## Interface: 16001
+            ## Version: 1.1.0
+            ForeverMail.lua
+            """,
+            ("ForeverMail.lua", "-- mail new"));
+
+        var bagDirectory =
+            Directory.CreateDirectory(
+                System.IO.Path.Combine(
+                    environment.WowAddOnsDirectory,
+                    "ForeverBag"))
+                .FullName;
+
+        File.WriteAllText(
+            System.IO.Path.Combine(
+                bagDirectory,
+                "ForeverBag.toc"),
+            """
+            ## Interface: 16001
+            ## Version: 1.0.0
+            ForeverBag.lua
+            """);
+
+        File.WriteAllText(
+            System.IO.Path.Combine(
+                bagDirectory,
+                "ForeverBag.lua"),
+            "-- bag old");
+
+        var mailDirectory =
+            Directory.CreateDirectory(
+                System.IO.Path.Combine(
+                    environment.WowAddOnsDirectory,
+                    "ForeverMail"))
+                .FullName;
+
+        File.WriteAllText(
+            System.IO.Path.Combine(
+                mailDirectory,
+                "ForeverMail.toc"),
+            """
+            ## Interface: 16001
+            ## Version: 1.2.0
+            ForeverMail.lua
+            """);
+
+        File.WriteAllText(
+            System.IO.Path.Combine(
+                mailDirectory,
+                "ForeverMail.lua"),
+            "-- mail newer");
+
+        var workflow =
+            CreateWorkflow(
+                environment,
+                new FakeProcessDetector(
+                    []));
+
+        await Assert.ThrowsAsync<
+            InvalidOperationException>(
+                () => workflow.ExecuteAsync(
+                    new WowTestInstallRequest(
+                        environment.ProjectDirectory,
+                        environment.WowAddOnsDirectory,
+                        ["ForeverBag", "ForeverMail"])));
+
+        Assert.Equal(
+            "-- bag old",
+            File.ReadAllText(
+                System.IO.Path.Combine(
+                    bagDirectory,
+                    "ForeverBag.lua")));
+
+        Assert.Equal(
+            "-- mail newer",
+            File.ReadAllText(
+                System.IO.Path.Combine(
+                    mailDirectory,
                     "ForeverMail.lua")));
     }
 
