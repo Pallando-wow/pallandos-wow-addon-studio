@@ -426,6 +426,255 @@ public sealed class CurseForgePublicationTests
     }
 
     [Fact]
+    public async Task PublicationHistory_ReportsPublishedRelease()
+    {
+        using var project =
+            new TemporaryProject();
+
+        project.CreateRelease(
+            "1.1.0");
+
+        var artifactService =
+            new ReleaseArtifactManifestService();
+
+        var workflow =
+            new ReleaseWorkflowService(
+                new ReleasePreparationService(),
+                new ReleasePackageBuilder(),
+                artifactService);
+
+        await workflow.PrepareAsync(
+            new ReleasePreparationRequest(
+                project.Path,
+                CreateManifest(),
+                "1.1.0",
+                CurseForgeProjectVerified: true),
+            buildPackage: true);
+
+        var plan =
+            await new CurseForgeUploadPlanService(
+                    artifactService)
+                .CreateAsync(
+                    project.Path,
+                    "1.1.0",
+                    1712846,
+                    [12919],
+                    "Changes");
+
+        var recordService =
+            new CurseForgePublicationRecordService(
+                artifactService);
+
+        var uploadedAt =
+            new DateTimeOffset(
+                2026,
+                10,
+                1,
+                8,
+                0,
+                0,
+                TimeSpan.Zero);
+
+        await recordService.WriteAsync(
+            project.Path,
+            "1.1.0",
+            plan,
+            new CurseForgeUploadResult(
+                20402),
+            uploadedAt);
+
+        var history =
+            await new CurseForgePublicationHistoryService(
+                    new ReleaseHistoryService(),
+                    artifactService,
+                    recordService)
+                .GetHistoryAsync(
+                    project.Path);
+
+        var entry =
+            Assert.Single(
+                history);
+
+        Assert.Equal(
+            "1.1.0",
+            entry.Version);
+        Assert.Equal(
+            CurseForgePublicationState.Published,
+            entry.State);
+        Assert.Equal(
+            1712846,
+            entry.ProjectId);
+        Assert.Equal(
+            20402,
+            entry.FileId);
+        Assert.Equal(
+            [12919],
+            entry.GameVersionIds);
+        Assert.Equal(
+            "release",
+            entry.ReleaseType);
+        Assert.Equal(
+            uploadedAt,
+            entry.UploadedAtUtc);
+    }
+
+    [Fact]
+    public async Task PublicationHistory_ReportsChangedLocalArtifact()
+    {
+        using var project =
+            new TemporaryProject();
+
+        project.CreateRelease(
+            "1.1.0");
+
+        var artifactService =
+            new ReleaseArtifactManifestService();
+
+        var workflow =
+            new ReleaseWorkflowService(
+                new ReleasePreparationService(),
+                new ReleasePackageBuilder(),
+                artifactService);
+
+        var firstRelease =
+            await workflow.PrepareAsync(
+                new ReleasePreparationRequest(
+                    project.Path,
+                    CreateManifest(),
+                    "1.1.0",
+                    CurseForgeProjectVerified: true),
+                buildPackage: true);
+
+        var firstPackage =
+            Assert.IsType<ReleasePackageResult>(
+                firstRelease.Package);
+
+        var plan =
+            await new CurseForgeUploadPlanService(
+                    artifactService)
+                .CreateAsync(
+                    project.Path,
+                    "1.1.0",
+                    1712846,
+                    [12919],
+                    "Changes");
+
+        var recordService =
+            new CurseForgePublicationRecordService(
+                artifactService);
+
+        await recordService.WriteAsync(
+            project.Path,
+            "1.1.0",
+            plan,
+            new CurseForgeUploadResult(
+                20402),
+            DateTimeOffset.UtcNow);
+
+        var addonFile =
+            System.IO.Path.Combine(
+                project.Path,
+                "AddOns",
+                "ForeverBag",
+                "ForeverBag.lua");
+
+        await File.AppendAllTextAsync(
+            addonFile,
+            Environment.NewLine +
+            "-- changed after publication");
+
+        var secondRelease =
+            await workflow.PrepareAsync(
+                new ReleasePreparationRequest(
+                    project.Path,
+                    CreateManifest(),
+                    "1.1.0",
+                    CurseForgeProjectVerified: true),
+                buildPackage: true);
+
+        var secondPackage =
+            Assert.IsType<ReleasePackageResult>(
+                secondRelease.Package);
+
+        Assert.NotEqual(
+            firstPackage.Sha256,
+            secondPackage.Sha256);
+
+        var history =
+            await new CurseForgePublicationHistoryService(
+                    new ReleaseHistoryService(),
+                    artifactService,
+                    recordService)
+                .GetHistoryAsync(
+                    project.Path);
+
+        var entry =
+            Assert.Single(
+                history);
+
+        Assert.Equal(
+            CurseForgePublicationState.LocalArtifactChanged,
+            entry.State);
+        Assert.Equal(
+            firstPackage.Sha256,
+            entry.PublishedArtifactSha256);
+        Assert.Equal(
+            20402,
+            entry.FileId);
+    }
+
+    [Fact]
+    public async Task PublicationHistory_ReportsUnpublishedRelease()
+    {
+        using var project =
+            new TemporaryProject();
+
+        project.CreateRelease(
+            "1.1.0");
+
+        var artifactService =
+            new ReleaseArtifactManifestService();
+
+        var workflow =
+            new ReleaseWorkflowService(
+                new ReleasePreparationService(),
+                new ReleasePackageBuilder(),
+                artifactService);
+
+        await workflow.PrepareAsync(
+            new ReleasePreparationRequest(
+                project.Path,
+                CreateManifest(),
+                "1.1.0",
+                CurseForgeProjectVerified: true),
+            buildPackage: true);
+
+        var recordService =
+            new CurseForgePublicationRecordService(
+                artifactService);
+
+        var history =
+            await new CurseForgePublicationHistoryService(
+                    new ReleaseHistoryService(),
+                    artifactService,
+                    recordService)
+                .GetHistoryAsync(
+                    project.Path);
+
+        var entry =
+            Assert.Single(
+                history);
+
+        Assert.Equal(
+            CurseForgePublicationState.NotPublished,
+            entry.State);
+        Assert.Null(
+            entry.FileId);
+        Assert.Null(
+            entry.UploadedAtUtc);
+    }
+
+    [Fact]
     public async Task PublicationRecord_RejectsPlanForDifferentArtifact()
     {
         using var project =
