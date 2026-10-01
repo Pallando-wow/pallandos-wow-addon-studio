@@ -148,6 +148,62 @@ public sealed class WowTestInstallTests
                     "ForeverBag.lua")));
     }
 
+    [Fact]
+    public async Task Planner_RejectsInstalledAddonWithoutExpectedToc()
+    {
+        using var environment =
+            new TemporaryEnvironment();
+
+        environment.CreateManagedProject();
+        environment.CreateRuntimeAddon(
+            "ForeverBag",
+            """
+            ## Interface: 16001
+            ## Version: 1.1.0
+            ForeverBag.lua
+            """,
+            ("ForeverBag.lua", "-- project"));
+
+        var installedDirectory =
+            Directory.CreateDirectory(
+                System.IO.Path.Combine(
+                    environment.WowAddOnsDirectory,
+                    "ForeverBag"))
+                .FullName;
+
+        File.WriteAllText(
+            System.IO.Path.Combine(
+                installedDirectory,
+                "ForeverBag.lua"),
+            "-- installed unknown");
+
+        var planner =
+            new WowTestInstallPlanner(
+                new TocDocumentReader(),
+                environment.BackupRoot);
+
+        var exception =
+            await Assert.ThrowsAsync<
+                InvalidDataException>(
+                () => planner.CreateAsync(
+                    new WowTestInstallRequest(
+                        environment.ProjectDirectory,
+                        environment.WowAddOnsDirectory,
+                        ["ForeverBag"])));
+
+        Assert.Contains(
+            "version cannot be verified safely",
+            exception.Message,
+            StringComparison.OrdinalIgnoreCase);
+
+        Assert.Equal(
+            "-- installed unknown",
+            File.ReadAllText(
+                System.IO.Path.Combine(
+                    installedDirectory,
+                    "ForeverBag.lua")));
+    }
+
     [Theory]
     [InlineData("1.1.0", "1.1.0")]
     [InlineData("1.0.9", "1.1.0")]
