@@ -130,7 +130,8 @@ public sealed class CurseForgeUploadApiClient
 
         var metadataJson =
             JsonSerializer.Serialize(
-                metadata);
+                metadata,
+                SerializerOptions);
 
         using var request =
             CreateRequest(
