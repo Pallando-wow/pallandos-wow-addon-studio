@@ -86,16 +86,16 @@ public sealed record CurseForgeGameVersionCatalog(
 
 public enum CurseForgeFileReleaseType
 {
-    Release = 1,
-    Beta = 2,
-    Alpha = 3
+    Release,
+    Beta,
+    Alpha
 }
 
 public enum CurseForgeChangelogMarkupType
 {
-    Text = 1,
-    Html = 2,
-    Markdown = 3
+    Text,
+    Html,
+    Markdown
 }
 
 public sealed record CurseForgeUploadPlan(
