@@ -18,6 +18,7 @@ public sealed class WowTestInstallTests
             """
             ## Interface: 16001
             ## Title: ForeverBag
+            ## Version: 1.1.0
             ForeverBag.lua
             """,
             ("ForeverBag.lua", "-- new"),
@@ -29,6 +30,16 @@ public sealed class WowTestInstallTests
                     environment.WowAddOnsDirectory,
                     "ForeverBag"))
                 .FullName;
+
+        File.WriteAllText(
+            System.IO.Path.Combine(
+                installedDirectory,
+                "ForeverBag.toc"),
+            """
+            ## Interface: 16001
+            ## Version: 1.0.0
+            ForeverBag.lua
+            """);
 
         File.WriteAllText(
             System.IO.Path.Combine(
@@ -498,6 +509,7 @@ public sealed class WowTestInstallTests
             "ForeverBag",
             """
             ## Interface: 16001
+            ## Version: 1.1.0
             ## SavedVariables: ForeverBagDB
             ForeverBag.lua
             """,
@@ -509,6 +521,16 @@ public sealed class WowTestInstallTests
                     environment.WowAddOnsDirectory,
                     "ForeverBag"))
                 .FullName;
+
+        File.WriteAllText(
+            System.IO.Path.Combine(
+                installedDirectory,
+                "ForeverBag.toc"),
+            """
+            ## Interface: 16001
+            ## Version: 1.0.0
+            ForeverBag.lua
+            """);
 
         var installedFile =
             System.IO.Path.Combine(
