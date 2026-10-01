@@ -888,8 +888,8 @@
                                                     HorizontalAlignment="Right"
                                                     VerticalAlignment="Bottom"
                                                     Command="{Binding InstallForTestingCommand}"
-                                                    Content="Addon installieren"
-                                                    ToolTip.Tip="Aktuelles Addon für den Test in WoW installieren" />
+                                                    Content="Install Addon"
+                                                    ToolTip.Tip="Install the current addon in WoW for testing" />
                                         </Grid>
                                     </Border>
 
@@ -910,7 +910,7 @@
                                             <StackPanel Grid.Column="1"
                                                         Spacing="3">
                                                 <TextBlock FontWeight="SemiBold"
-                                                           Text="Installation erfolgreich" />
+                                                           Text="Installation successful" />
                                                 <TextBlock TextWrapping="Wrap"
                                                            Text="{Binding InstallFeedbackMessage}" />
                                             </StackPanel>
@@ -934,7 +934,7 @@
                                             <StackPanel Grid.Column="1"
                                                         Spacing="3">
                                                 <TextBlock FontWeight="SemiBold"
-                                                           Text="Installation fehlgeschlagen" />
+                                                           Text="Installation failed" />
                                                 <TextBlock TextWrapping="Wrap"
                                                            Text="{Binding InstallFeedbackMessage}" />
                                             </StackPanel>
