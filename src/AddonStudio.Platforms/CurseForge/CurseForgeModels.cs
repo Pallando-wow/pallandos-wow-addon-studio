@@ -64,3 +64,49 @@ public sealed record CurseForgeProject(
             _ => $"Status {Status}"
         };
 }
+
+
+public sealed record CurseForgeGameVersionType(
+    int Id,
+    int GameId,
+    string Name,
+    string Slug);
+
+public sealed record CurseForgeGameVersion(
+    int Id,
+    string Name,
+    string Slug,
+    int TypeId,
+    string TypeName,
+    string TypeSlug);
+
+public sealed record CurseForgeGameVersionCatalog(
+    IReadOnlyList<CurseForgeGameVersionType> Types,
+    IReadOnlyList<CurseForgeGameVersion> Versions);
+
+public enum CurseForgeFileReleaseType
+{
+    Release = 1,
+    Beta = 2,
+    Alpha = 3
+}
+
+public enum CurseForgeChangelogMarkupType
+{
+    Text = 1,
+    Html = 2,
+    Markdown = 3
+}
+
+public sealed record CurseForgeUploadPlan(
+    int ProjectId,
+    string PackagePath,
+    string FileName,
+    string DisplayName,
+    string Changelog,
+    CurseForgeChangelogMarkupType ChangelogType,
+    IReadOnlyList<int> GameVersionIds,
+    CurseForgeFileReleaseType ReleaseType,
+    long FileLength,
+    bool IsMarkedForManualRelease,
+    string ArtifactSha256);
