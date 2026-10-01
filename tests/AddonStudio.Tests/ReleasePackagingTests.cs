@@ -1,0 +1,477 @@
+using System.IO.Compression;
+using AddonStudio.Core.Projects;
+using AddonStudio.Packaging.Releases;
+
+namespace AddonStudio.Tests;
+
+public sealed class ReleasePackagingTests
+{
+    [Fact]
+    public void Preparation_IsReadyWhenRequiredReleaseDataExists()
+    {
+        using var temp =
+            new TemporaryProject();
+
+        temp.CreateRuntimeAddon(
+            "ForeverBag",
+            """
+            ## Interface: 16001
+            ## Title: ForeverBag
+            ## Version: 1.1.0
+            ForeverBag.lua
+            """);
+
+        temp.CreatePublishingContent(
+            "1.1.0");
+
+        var service =
+            new ReleasePreparationService();
+
+        var snapshot =
+            service.Inspect(
+                new ReleasePreparationRequest(
+                    temp.Path,
+                    CreateManifest(),
+                    "1.1.0",
+                    CurseForgeProjectVerified: true));
+
+        Assert.True(
+            snapshot.IsReady);
+        Assert.Equal(
+            0,
+            snapshot.ErrorCount);
+        Assert.Contains(
+            snapshot.Issues,
+            issue =>
+                issue.Code ==
+                "SCREENSHOTS_OPTIONAL");
+    }
+
+    [Fact]
+    public void Preparation_RejectsMissingVersionedChangelog()
+    {
+        using var temp =
+            new TemporaryProject();
+
+        temp.CreateRuntimeAddon(
+            "ForeverBag",
+            """
+            ## Interface: 16001
+            ## Title: ForeverBag
+            ## Version: 1.1.0
+            ForeverBag.lua
+            """);
+
+        temp.CreateProjectPageOnly();
+
+        var service =
+            new ReleasePreparationService();
+
+        var snapshot =
+            service.Inspect(
+                new ReleasePreparationRequest(
+                    temp.Path,
+                    CreateManifest(),
+                    "1.1.0",
+                    CurseForgeProjectVerified: true));
+
+        Assert.False(
+            snapshot.IsReady);
+
+        Assert.Contains(
+            snapshot.Issues,
+            issue =>
+                issue.Code ==
+                    "CHANGELOG_MISSING" &&
+                issue.Severity ==
+                    ReleasePreparationSeverity.Error);
+    }
+
+    [Fact]
+    public void Preparation_RequiresVerifiedCurseForgeBinding()
+    {
+        using var temp =
+            new TemporaryProject();
+
+        temp.CreateRuntimeAddon(
+            "ForeverBag",
+            """
+            ## Interface: 16001
+            ## Title: ForeverBag
+            ## Version: 1.1.0
+            ForeverBag.lua
+            """);
+
+        temp.CreatePublishingContent(
+            "1.1.0");
+
+        var service =
+            new ReleasePreparationService();
+
+        var snapshot =
+            service.Inspect(
+                new ReleasePreparationRequest(
+                    temp.Path,
+                    CreateManifest(),
+                    "1.1.0",
+                    CurseForgeProjectVerified: false));
+
+        Assert.Contains(
+            snapshot.Issues,
+            issue =>
+                issue.Code ==
+                "CURSEFORGE_BINDING_NOT_VERIFIED");
+    }
+
+    [Fact]
+    public async Task PackageBuilder_CreatesRuntimeOnlyZip()
+    {
+        using var temp =
+            new TemporaryProject();
+
+        var addonDirectory =
+            temp.CreateRuntimeAddon(
+                "ForeverBag",
+                """
+                ## Interface: 16001
+                ## Title: ForeverBag
+                ## Version: 1.1.0
+                ForeverBag.lua
+                """);
+
+        await File.WriteAllTextAsync(
+            System.IO.Path.Combine(
+                addonDirectory,
+                "ForeverBag.lua"),
+            "print('ForeverBag')");
+
+        await File.WriteAllTextAsync(
+            System.IO.Path.Combine(
+                addonDirectory,
+                "README.md"),
+            "do not package");
+
+        var gitDirectory =
+            Directory.CreateDirectory(
+                System.IO.Path.Combine(
+                    addonDirectory,
+                    ".git"));
+
+        await File.WriteAllTextAsync(
+            System.IO.Path.Combine(
+                gitDirectory.FullName,
+                "config"),
+            "do not package");
+
+        await File.WriteAllTextAsync(
+            System.IO.Path.Combine(
+                temp.Path,
+                "project.json.backup"),
+            "studio-only");
+
+        var builder =
+            new ReleasePackageBuilder();
+
+        var result =
+            await builder.BuildAsync(
+                new ReleasePackageRequest(
+                    temp.Path,
+                    CreateManifest(),
+                    "1.1.0"));
+
+        Assert.Equal(
+            "ForeverBag-1.1.0.zip",
+            result.FileName);
+
+        Assert.Equal(
+            System.IO.Path.Combine(
+                temp.Path,
+                "Release",
+                "Versions",
+                "1.1.0",
+                "ForeverBag-1.1.0.zip"),
+            result.PackagePath);
+
+        Assert.True(
+            result.SizeBytes > 0);
+
+        using var archive =
+            ZipFile.OpenRead(
+                result.PackagePath);
+
+        var entries =
+            archive.Entries
+                .Select(entry =>
+                    entry.FullName)
+                .ToArray();
+
+        Assert.Contains(
+            "ForeverBag/ForeverBag.toc",
+            entries);
+        Assert.Contains(
+            "ForeverBag/ForeverBag.lua",
+            entries);
+        Assert.DoesNotContain(
+            entries,
+            entry =>
+                entry.EndsWith(
+                    ".md",
+                    StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(
+            entries,
+            entry =>
+                entry.Contains(
+                    "/.git/",
+                    StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(
+            entries,
+            entry =>
+                entry.Contains(
+                    "project.json",
+                    StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task PackageBuilder_UsesConfiguredPackageName()
+    {
+        using var temp =
+            new TemporaryProject();
+
+        temp.CreateRuntimeAddon(
+            "ForeverBag",
+            """
+            ## Interface: 16001
+            ## Version: 1.1.0
+            ForeverBag.lua
+            """);
+
+        var manifest =
+            CreateManifest() with
+            {
+                Release =
+                    new ReleaseConfiguration
+                    {
+                        PackageName =
+                            "Pallando-ForeverBag"
+                    }
+            };
+
+        var builder =
+            new ReleasePackageBuilder();
+
+        var result =
+            await builder.BuildAsync(
+                new ReleasePackageRequest(
+                    temp.Path,
+                    manifest,
+                    "1.1.0"));
+
+        Assert.Equal(
+            "Pallando-ForeverBag-1.1.0.zip",
+            result.FileName);
+    }
+
+    [Fact]
+    public async Task History_ReportsChangelogAndPackagePerVersion()
+    {
+        using var temp =
+            new TemporaryProject();
+
+        temp.CreateRuntimeAddon(
+            "ForeverBag",
+            """
+            ## Interface: 16001
+            ## Version: 1.1.0
+            ForeverBag.lua
+            """);
+
+        temp.CreatePublishingContent(
+            "1.1.0");
+
+        var builder =
+            new ReleasePackageBuilder();
+
+        var package =
+            await builder.BuildAsync(
+                new ReleasePackageRequest(
+                    temp.Path,
+                    CreateManifest(),
+                    "1.1.0"));
+
+        var history =
+            new ReleaseHistoryService()
+                .GetHistory(
+                    temp.Path);
+
+        var entry =
+            Assert.Single(
+                history);
+
+        Assert.Equal(
+            "1.1.0",
+            entry.Version);
+        Assert.True(
+            entry.HasChangelog);
+        Assert.Contains(
+            package.PackagePath,
+            entry.PackageFiles);
+    }
+
+    private static ProjectManifest CreateManifest() =>
+        new()
+        {
+            Project =
+                new ProjectIdentity
+                {
+                    Id = "forever-bag",
+                    Name = "ForeverBag",
+                    Type = ProjectType.Addon
+                },
+            Runtime =
+                new RuntimeLayout
+                {
+                    PrimaryAddon =
+                        "ForeverBag",
+                    Addons =
+                        ["ForeverBag"]
+                },
+            CurseForge =
+                new CurseForgeConfiguration
+                {
+                    ProjectId =
+                        "1712846",
+                    Slug =
+                        "forever-bag",
+                    MainCategoryId =
+                        "1009",
+                    License =
+                        "GPL-3.0",
+                    AllowDistribution =
+                        true
+                }
+        };
+
+    private sealed class TemporaryProject : IDisposable
+    {
+        public TemporaryProject()
+        {
+            Path =
+                System.IO.Path.Combine(
+                    System.IO.Path.GetTempPath(),
+                    "AddonStudio.Tests",
+                    Guid.NewGuid().ToString("N"));
+
+            Directory.CreateDirectory(
+                Path);
+
+            File.WriteAllText(
+                System.IO.Path.Combine(
+                    Path,
+                    "project.json"),
+                "{}");
+        }
+
+        public string Path { get; }
+
+        public string CreateRuntimeAddon(
+            string addonName,
+            string tocContent)
+        {
+            var addonDirectory =
+                Directory.CreateDirectory(
+                    System.IO.Path.Combine(
+                        Path,
+                        "AddOns",
+                        addonName))
+                    .FullName;
+
+            File.WriteAllText(
+                System.IO.Path.Combine(
+                    addonDirectory,
+                    addonName + ".toc"),
+                tocContent);
+
+            if (!File.Exists(
+                    System.IO.Path.Combine(
+                        addonDirectory,
+                        addonName + ".lua")))
+            {
+                File.WriteAllText(
+                    System.IO.Path.Combine(
+                        addonDirectory,
+                        addonName + ".lua"),
+                    "-- addon");
+            }
+
+            return addonDirectory;
+        }
+
+        public void CreateProjectPageOnly()
+        {
+            var releaseDirectory =
+                Directory.CreateDirectory(
+                    System.IO.Path.Combine(
+                        Path,
+                        "Release"))
+                    .FullName;
+
+            File.WriteAllText(
+                System.IO.Path.Combine(
+                    releaseDirectory,
+                    "SUMMARY.md"),
+                "Summary");
+
+            File.WriteAllText(
+                System.IO.Path.Combine(
+                    releaseDirectory,
+                    "DESCRIPTION.md"),
+                "Description");
+
+            var logoDirectory =
+                Directory.CreateDirectory(
+                    System.IO.Path.Combine(
+                        Path,
+                        "Media",
+                        "Logo"))
+                    .FullName;
+
+            File.WriteAllBytes(
+                System.IO.Path.Combine(
+                    logoDirectory,
+                    "logo.png"),
+                [1, 2, 3]);
+        }
+
+        public void CreatePublishingContent(
+            string version)
+        {
+            CreateProjectPageOnly();
+
+            var versionDirectory =
+                Directory.CreateDirectory(
+                    System.IO.Path.Combine(
+                        Path,
+                        "Release",
+                        "Versions",
+                        version))
+                    .FullName;
+
+            File.WriteAllText(
+                System.IO.Path.Combine(
+                    versionDirectory,
+                    "CHANGELOG.md"),
+                "Changes");
+        }
+
+        public void Dispose()
+        {
+            if (Directory.Exists(
+                    Path))
+            {
+                Directory.Delete(
+                    Path,
+                    recursive: true);
+            }
+        }
+    }
+}
