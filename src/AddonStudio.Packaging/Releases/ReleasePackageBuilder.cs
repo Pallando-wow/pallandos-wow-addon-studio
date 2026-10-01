@@ -6,6 +6,9 @@ namespace AddonStudio.Packaging.Releases;
 
 public sealed class ReleasePackageBuilder
 {
+    private const string PortableInvalidFileNameCharacters =
+        "<>:\"/\\|?*";
+
     private static readonly DateTimeOffset
         DeterministicEntryTimestamp =
             new(
@@ -79,93 +82,98 @@ public sealed class ReleasePackageBuilder
 
         try
         {
-            await using (
-                var stream = new FileStream(
+            await using var stream =
+                new FileStream(
                     temporaryPackagePath,
                     FileMode.CreateNew,
                     FileAccess.ReadWrite,
                     FileShare.None,
                     81920,
-                    useAsync: true))
+                    useAsync: true);
+
             using (
                 var archive = new ZipArchive(
                     stream,
                     ZipArchiveMode.Create,
-                    leaveOpen: false))
+                    leaveOpen: true))
             {
                 foreach (var addon in runtimeAddons)
                 {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                var addonDirectory =
-                    Path.Combine(
-                        projectDirectory,
-                        ProjectLayout.RuntimeDirectoryName,
-                        addon);
-
-                if (!Directory.Exists(
-                        addonDirectory))
-                {
-                    throw new DirectoryNotFoundException(
-                        $"Runtime addon directory '{addonDirectory}' does not exist.");
-                }
-
-                foreach (var file in Directory
-                             .EnumerateFiles(
-                                 addonDirectory,
-                                 "*",
-                                 SearchOption.AllDirectories)
-                             .OrderBy(
-                                 file => file,
-                                 StringComparer.OrdinalIgnoreCase))
-                {
                     cancellationToken.ThrowIfCancellationRequested();
 
-                    var relativePath =
-                        Path.GetRelativePath(
-                            addonDirectory,
-                            file);
+                    var addonDirectory =
+                        Path.Combine(
+                            projectDirectory,
+                            ProjectLayout.RuntimeDirectoryName,
+                            addon);
 
-                    if (!ShouldPackage(
-                            relativePath))
+                    if (!Directory.Exists(
+                            addonDirectory))
                     {
-                        continue;
+                        throw new DirectoryNotFoundException(
+                            $"Runtime addon directory '{addonDirectory}' does not exist.");
                     }
 
-                    var entryName =
-                        NormalizeZipPath(
-                            Path.Combine(
-                                addon,
-                                relativePath));
+                    foreach (var file in Directory
+                                 .EnumerateFiles(
+                                     addonDirectory,
+                                     "*",
+                                     SearchOption.AllDirectories)
+                                 .OrderBy(
+                                     file => file,
+                                     StringComparer.OrdinalIgnoreCase))
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
 
-                    var entry =
-                        archive.CreateEntry(
-                            entryName,
-                            CompressionLevel.Optimal);
+                        var relativePath =
+                            Path.GetRelativePath(
+                                addonDirectory,
+                                file);
 
-                    entry.LastWriteTime =
-                        DeterministicEntryTimestamp;
+                        if (!ShouldPackage(
+                                relativePath))
+                        {
+                            continue;
+                        }
 
-                    await using var input =
-                        new FileStream(
-                            file,
-                            FileMode.Open,
-                            FileAccess.Read,
-                            FileShare.Read,
-                            81920,
-                            useAsync: true);
+                        var entryName =
+                            NormalizeZipPath(
+                                Path.Combine(
+                                    addon,
+                                    relativePath));
 
-                    await using var output =
-                        entry.Open();
+                        var entry =
+                            archive.CreateEntry(
+                                entryName,
+                                CompressionLevel.Optimal);
 
-                    await input.CopyToAsync(
-                        output,
-                        cancellationToken);
+                        entry.LastWriteTime =
+                            DeterministicEntryTimestamp;
 
-                    entries.Add(
-                        entryName);
+                        await using var input =
+                            new FileStream(
+                                file,
+                                FileMode.Open,
+                                FileAccess.Read,
+                                FileShare.Read,
+                                81920,
+                                useAsync: true);
+
+                        await using var output =
+                            entry.Open();
+
+                        await input.CopyToAsync(
+                            output,
+                            cancellationToken);
+
+                        entries.Add(
+                            entryName);
+                    }
                 }
             }
+
+            await stream.FlushAsync(
+                cancellationToken);
 
             if (entries.Count == 0)
             {
@@ -285,15 +293,13 @@ public sealed class ReleasePackageBuilder
             Path.GetFileNameWithoutExtension(
                 baseName.Trim());
 
-        const string portableInvalidCharacters =
-            "<>:"/\\|?*";
-
         var safeBaseName =
             new string(
                 baseName
                     .Select(character =>
                         char.IsControl(character) ||
-                        portableInvalidCharacters.Contains(character)
+                        PortableInvalidFileNameCharacters
+                            .Contains(character)
                             ? '-'
                             : character)
                     .ToArray())
@@ -321,12 +327,10 @@ public sealed class ReleasePackageBuilder
             version.Trim();
 
         if (value is "." or ".." ||
-            value.IndexOfAny(
-                Path.GetInvalidFileNameChars()) >= 0 ||
-            value.Contains(
-                Path.DirectorySeparatorChar) ||
-            value.Contains(
-                Path.AltDirectorySeparatorChar))
+            value.Any(character =>
+                char.IsControl(character) ||
+                PortableInvalidFileNameCharacters
+                    .Contains(character)))
         {
             throw new ArgumentException(
                 "Release version cannot be used as a directory name.",
