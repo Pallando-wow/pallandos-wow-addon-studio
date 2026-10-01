@@ -11,4 +11,5 @@ public sealed record ReleasePackageResult(
     string PackagePath,
     string FileName,
     long SizeBytes,
+    string Sha256,
     IReadOnlyList<string> Entries);
