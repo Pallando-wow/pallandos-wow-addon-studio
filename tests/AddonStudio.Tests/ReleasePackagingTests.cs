@@ -272,6 +272,53 @@ public sealed class ReleasePackagingTests
     }
 
     [Fact]
+    public async Task History_SortsNumericVersionsNewestFirst()
+    {
+        using var temp =
+            new TemporaryProject();
+
+        temp.CreateRuntimeAddon(
+            "ForeverBag",
+            """
+            ## Interface: 16001
+            ## Version: 1.10.0
+            ForeverBag.lua
+            """);
+
+        temp.CreatePublishingContent(
+            "1.9.0");
+        temp.CreatePublishingContent(
+            "1.10.0");
+
+        var builder =
+            new ReleasePackageBuilder();
+
+        await builder.BuildAsync(
+            new ReleasePackageRequest(
+                temp.Path,
+                CreateManifest(),
+                "1.9.0"));
+
+        await builder.BuildAsync(
+            new ReleasePackageRequest(
+                temp.Path,
+                CreateManifest(),
+                "1.10.0"));
+
+        var history =
+            new ReleaseHistoryService()
+                .GetHistory(
+                    temp.Path);
+
+        Assert.Equal(
+            ["1.10.0", "1.9.0"],
+            history
+                .Select(entry =>
+                    entry.Version)
+                .ToArray());
+    }
+
+    [Fact]
     public async Task History_ReportsChangelogAndPackagePerVersion()
     {
         using var temp =
