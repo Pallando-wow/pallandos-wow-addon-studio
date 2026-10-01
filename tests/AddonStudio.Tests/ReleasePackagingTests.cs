@@ -305,7 +305,8 @@ public sealed class ReleasePackagingTests
         var workflow =
             new ReleaseWorkflowService(
                 new ReleasePreparationService(),
-                new ReleasePackageBuilder());
+                new ReleasePackageBuilder(),
+                new ReleaseArtifactManifestService());
 
         var result =
             await workflow.PrepareAsync(
@@ -320,6 +321,8 @@ public sealed class ReleasePackagingTests
             result.Preparation.IsReady);
         Assert.False(
             result.PackageCreated);
+        Assert.False(
+            result.ArtifactManifestCreated);
 
         Assert.False(
             File.Exists(
@@ -351,7 +354,8 @@ public sealed class ReleasePackagingTests
         var workflow =
             new ReleaseWorkflowService(
                 new ReleasePreparationService(),
-                new ReleasePackageBuilder());
+                new ReleasePackageBuilder(),
+                new ReleaseArtifactManifestService());
 
         var result =
             await workflow.PrepareAsync(
@@ -366,11 +370,85 @@ public sealed class ReleasePackagingTests
             result.Preparation.IsReady);
         Assert.True(
             result.PackageCreated);
+        Assert.True(
+            result.ArtifactManifestCreated);
         Assert.NotNull(
             result.Package);
+        Assert.NotNull(
+            result.ArtifactManifestPath);
         Assert.True(
             File.Exists(
                 result.Package.PackagePath));
+        Assert.True(
+            File.Exists(
+                result.ArtifactManifestPath));
+
+        var verification =
+            await new ReleaseArtifactManifestService()
+                .VerifyAsync(
+                    temp.Path,
+                    "1.1.0");
+
+        Assert.True(
+            verification.IsValid);
+        Assert.Empty(
+            verification.Issues);
+    }
+
+    [Fact]
+    public async Task ArtifactVerification_DetectsTamperedPackage()
+    {
+        using var temp =
+            new TemporaryProject();
+
+        temp.CreateRuntimeAddon(
+            "ForeverBag",
+            """
+            ## Interface: 16001
+            ## Version: 1.1.0
+            ForeverBag.lua
+            """);
+
+        temp.CreatePublishingContent(
+            "1.1.0");
+
+        var workflow =
+            new ReleaseWorkflowService(
+                new ReleasePreparationService(),
+                new ReleasePackageBuilder(),
+                new ReleaseArtifactManifestService());
+
+        var result =
+            await workflow.PrepareAsync(
+                new ReleasePreparationRequest(
+                    temp.Path,
+                    CreateManifest(),
+                    "1.1.0",
+                    CurseForgeProjectVerified: true),
+                buildPackage: true);
+
+        var package =
+            Assert.IsType<ReleasePackageResult>(
+                result.Package);
+
+        await File.AppendAllTextAsync(
+            package.PackagePath,
+            "tampered");
+
+        var verification =
+            await new ReleaseArtifactManifestService()
+                .VerifyAsync(
+                    temp.Path,
+                    "1.1.0");
+
+        Assert.False(
+            verification.IsValid);
+        Assert.Contains(
+            verification.Issues,
+            issue =>
+                issue.Contains(
+                    "SHA-256",
+                    StringComparison.Ordinal));
     }
 
     [Fact]
@@ -477,15 +555,24 @@ public sealed class ReleasePackagingTests
         temp.CreatePublishingContent(
             "1.1.0");
 
-        var builder =
-            new ReleasePackageBuilder();
+        var workflow =
+            new ReleaseWorkflowService(
+                new ReleasePreparationService(),
+                new ReleasePackageBuilder(),
+                new ReleaseArtifactManifestService());
 
-        var package =
-            await builder.BuildAsync(
-                new ReleasePackageRequest(
+        var workflowResult =
+            await workflow.PrepareAsync(
+                new ReleasePreparationRequest(
                     temp.Path,
                     CreateManifest(),
-                    "1.1.0"));
+                    "1.1.0",
+                    CurseForgeProjectVerified: true),
+                buildPackage: true);
+
+        var package =
+            Assert.IsType<ReleasePackageResult>(
+                workflowResult.Package);
 
         var history =
             new ReleaseHistoryService()
@@ -501,6 +588,8 @@ public sealed class ReleasePackagingTests
             entry.Version);
         Assert.True(
             entry.HasChangelog);
+        Assert.True(
+            entry.HasArtifactManifest);
         Assert.Contains(
             package.PackagePath,
             entry.PackageFiles);
