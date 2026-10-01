@@ -29,3 +29,26 @@ public sealed record CurseForgePublicationRecord
 public sealed record CurseForgeUploadExecutionResult(
     CurseForgeUploadResult Upload,
     string PublicationRecordPath);
+
+
+public enum CurseForgePublicationState
+{
+    NotPublished,
+    Published,
+    LocalArtifactChanged
+}
+
+public sealed record CurseForgePublicationHistoryEntry(
+    string Version,
+    CurseForgePublicationState State,
+    bool HasChangelog,
+    bool HasArtifactManifest,
+    IReadOnlyList<string> PackageFiles,
+    int? ProjectId,
+    int? FileId,
+    string? PublishedPackageFileName,
+    string? PublishedArtifactSha256,
+    IReadOnlyList<int> GameVersionIds,
+    string? ReleaseType,
+    bool? IsMarkedForManualRelease,
+    DateTimeOffset? UploadedAtUtc);
