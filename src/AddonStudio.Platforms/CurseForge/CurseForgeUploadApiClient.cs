@@ -13,7 +13,9 @@ public sealed class CurseForgeUploadApiClient
         SerializerOptions =
             new()
             {
-                PropertyNameCaseInsensitive = true
+                PropertyNameCaseInsensitive = true,
+                PropertyNamingPolicy =
+                    JsonNamingPolicy.CamelCase
             };
 
     private readonly HttpClient httpClient;
