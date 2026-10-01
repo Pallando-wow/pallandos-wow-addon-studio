@@ -153,6 +153,199 @@ public sealed class CurseForgePublicationTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_BlocksDuplicateArtifactBeforeHttpRequest()
+    {
+        using var project =
+            new TemporaryProject();
+
+        project.CreateRelease(
+            "1.1.0");
+
+        var artifactService =
+            new ReleaseArtifactManifestService();
+
+        var releaseWorkflow =
+            new ReleaseWorkflowService(
+                new ReleasePreparationService(),
+                new ReleasePackageBuilder(),
+                artifactService);
+
+        await releaseWorkflow.PrepareAsync(
+            new ReleasePreparationRequest(
+                project.Path,
+                CreateManifest(),
+                "1.1.0",
+                CurseForgeProjectVerified: true),
+            buildPackage: true);
+
+        var plan =
+            await new CurseForgeUploadPlanService(
+                    artifactService)
+                .CreateAsync(
+                    project.Path,
+                    "1.1.0",
+                    1712846,
+                    [12919],
+                    "Changes");
+
+        var recordService =
+            new CurseForgePublicationRecordService(
+                artifactService);
+
+        await recordService.WriteAsync(
+            project.Path,
+            "1.1.0",
+            plan,
+            new CurseForgeUploadResult(
+                20402),
+            DateTimeOffset.UtcNow);
+
+        var requestSent =
+            false;
+
+        var apiClient =
+            new CurseForgeUploadApiClient(
+                new HttpClient(
+                    new StubHandler(
+                        _ =>
+                        {
+                            requestSent =
+                                true;
+
+                            return Json(
+                                """
+                                {
+                                  "id": 20403
+                                }
+                                """);
+                        }))
+                {
+                    BaseAddress =
+                        new Uri(
+                            "https://wow.curseforge.com/")
+                });
+
+        var execution =
+            new CurseForgeUploadExecutionService(
+                apiClient,
+                recordService);
+
+        var exception =
+            await Assert.ThrowsAsync<
+                InvalidOperationException>(
+                () => execution.ExecuteAsync(
+                    "upload-token",
+                    project.Path,
+                    "1.1.0",
+                    plan));
+
+        Assert.Contains(
+            "already published",
+            exception.Message,
+            StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(
+            "#20402",
+            exception.Message,
+            StringComparison.Ordinal);
+        Assert.False(
+            requestSent);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_AllowsExplicitRepublish()
+    {
+        using var project =
+            new TemporaryProject();
+
+        project.CreateRelease(
+            "1.1.0");
+
+        var artifactService =
+            new ReleaseArtifactManifestService();
+
+        var releaseWorkflow =
+            new ReleaseWorkflowService(
+                new ReleasePreparationService(),
+                new ReleasePackageBuilder(),
+                artifactService);
+
+        await releaseWorkflow.PrepareAsync(
+            new ReleasePreparationRequest(
+                project.Path,
+                CreateManifest(),
+                "1.1.0",
+                CurseForgeProjectVerified: true),
+            buildPackage: true);
+
+        var plan =
+            await new CurseForgeUploadPlanService(
+                    artifactService)
+                .CreateAsync(
+                    project.Path,
+                    "1.1.0",
+                    1712846,
+                    [12919],
+                    "Changes");
+
+        var recordService =
+            new CurseForgePublicationRecordService(
+                artifactService);
+
+        await recordService.WriteAsync(
+            project.Path,
+            "1.1.0",
+            plan,
+            new CurseForgeUploadResult(
+                20402),
+            DateTimeOffset.UtcNow);
+
+        var apiClient =
+            new CurseForgeUploadApiClient(
+                new HttpClient(
+                    new StubHandler(
+                        _ =>
+                            Json(
+                                """
+                                {
+                                  "id": 20403
+                                }
+                                """)))
+                {
+                    BaseAddress =
+                        new Uri(
+                            "https://wow.curseforge.com/")
+                });
+
+        var execution =
+            new CurseForgeUploadExecutionService(
+                apiClient,
+                recordService);
+
+        var result =
+            await execution.ExecuteAsync(
+                "upload-token",
+                project.Path,
+                "1.1.0",
+                plan,
+                allowRepublish: true);
+
+        Assert.Equal(
+            20403,
+            result.Upload.FileId);
+
+        var record =
+            await recordService.ReadAsync(
+                project.Path,
+                "1.1.0");
+
+        Assert.NotNull(
+            record);
+        Assert.Equal(
+            20403,
+            record.FileId);
+    }
+
+    [Fact]
     public async Task ExecuteAsync_DoesNotStoreRecordWhenUploadFails()
     {
         using var project =
