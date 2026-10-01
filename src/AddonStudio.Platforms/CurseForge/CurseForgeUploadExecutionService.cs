@@ -15,6 +15,7 @@ public sealed class CurseForgeUploadExecutionService(
             string projectDirectory,
             string version,
             CurseForgeUploadPlan plan,
+            bool allowRepublish = false,
             CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(
@@ -25,6 +26,27 @@ public sealed class CurseForgeUploadExecutionService(
             version);
         ArgumentNullException.ThrowIfNull(
             plan);
+
+        if (!allowRepublish)
+        {
+            var existingPublication =
+                await publicationRecordService.ReadAsync(
+                    projectDirectory,
+                    version,
+                    cancellationToken);
+
+            if (existingPublication is not null &&
+                existingPublication.ProjectId ==
+                    plan.ProjectId &&
+                string.Equals(
+                    existingPublication.ArtifactSha256,
+                    plan.ArtifactSha256,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    $"Release '{version.Trim()}' with artifact SHA-256 '{plan.ArtifactSha256}' is already published to CurseForge as file #{existingPublication.FileId}.");
+            }
+        }
 
         var upload =
             await uploadApiClient.UploadFileAsync(
