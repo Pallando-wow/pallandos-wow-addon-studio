@@ -6,9 +6,6 @@ namespace AddonStudio.Packaging.Releases;
 
 public sealed class ReleasePackageBuilder
 {
-    private const string PortableInvalidFileNameCharacters =
-        "<>:\"/\\|?*";
-
     private static readonly DateTimeOffset
         DeterministicEntryTimestamp =
             new(
@@ -33,8 +30,9 @@ public sealed class ReleasePackageBuilder
                 request.ProjectDirectory);
 
         var version =
-            RequireVersion(
-                request.Version);
+            ReleasePathRules
+                .RequireVersionDirectoryName(
+                    request.Version);
 
         var runtimeAddons =
             request.Manifest.Runtime.Addons
@@ -291,55 +289,12 @@ public sealed class ReleasePackageBuilder
                 manifest.Project.Name;
         }
 
-        baseName =
-            Path.GetFileNameWithoutExtension(
-                baseName.Trim());
-
         var safeBaseName =
-            new string(
-                baseName
-                    .Select(character =>
-                        char.IsControl(character) ||
-                        PortableInvalidFileNameCharacters
-                            .Contains(character)
-                            ? '-'
-                            : character)
-                    .ToArray())
-                .Trim(
-                    ' ',
-                    '.',
-                    '-');
-
-        if (safeBaseName.Length == 0)
-        {
-            safeBaseName =
-                "Addon";
-        }
+            ReleasePathRules
+                .SanitizePackageBaseName(
+                    baseName);
 
         return $"{safeBaseName}-{version}.zip";
-    }
-
-    private static string RequireVersion(
-        string? version)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(
-            version);
-
-        var value =
-            version.Trim();
-
-        if (value is "." or ".." ||
-            value.Any(character =>
-                char.IsControl(character) ||
-                PortableInvalidFileNameCharacters
-                    .Contains(character)))
-        {
-            throw new ArgumentException(
-                "Release version cannot be used as a directory name.",
-                nameof(version));
-        }
-
-        return value;
     }
 
     private static string NormalizeZipPath(
