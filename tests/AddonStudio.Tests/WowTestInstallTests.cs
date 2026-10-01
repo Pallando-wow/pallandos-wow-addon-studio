@@ -310,6 +310,95 @@ public sealed class WowTestInstallTests
     }
 
     [Fact]
+    public async Task Planner_RejectsTargetDirectoryOutsideInterfaceAddOnsShape()
+    {
+        using var environment =
+            new TemporaryEnvironment();
+
+        environment.CreateManagedProject();
+        environment.CreateRuntimeAddon(
+            "ForeverBag",
+            """
+            ## Interface: 16001
+            ForeverBag.lua
+            """,
+            ("ForeverBag.lua", "-- addon"));
+
+        var unsafeTarget =
+            Directory.CreateDirectory(
+                System.IO.Path.Combine(
+                    environment.RootDirectory,
+                    "SomeOtherDirectory"))
+                .FullName;
+
+        var planner =
+            new WowTestInstallPlanner(
+                new TocDocumentReader(),
+                environment.BackupRoot);
+
+        var exception =
+            await Assert.ThrowsAsync<
+                InvalidDataException>(
+                () => planner.CreateAsync(
+                    new WowTestInstallRequest(
+                        environment.ProjectDirectory,
+                        unsafeTarget,
+                        ["ForeverBag"])));
+
+        Assert.Contains(
+            "Interface/AddOns",
+            exception.Message,
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task CleanInstall_RejectsSavedVariablesOutsideWtfAccountShape()
+    {
+        using var environment =
+            new TemporaryEnvironment();
+
+        environment.CreateManagedProject();
+        environment.CreateRuntimeAddon(
+            "ForeverBag",
+            """
+            ## Interface: 16001
+            ## SavedVariables: ForeverBagDB
+            ForeverBag.lua
+            """,
+            ("ForeverBag.lua", "-- addon"));
+
+        var unsafeSavedVariables =
+            Directory.CreateDirectory(
+                System.IO.Path.Combine(
+                    environment.RootDirectory,
+                    "Unrelated",
+                    "SavedVariables"))
+                .FullName;
+
+        var planner =
+            new WowTestInstallPlanner(
+                new TocDocumentReader(),
+                environment.BackupRoot);
+
+        var exception =
+            await Assert.ThrowsAsync<
+                InvalidDataException>(
+                () => planner.CreateAsync(
+                    new WowTestInstallRequest(
+                        environment.ProjectDirectory,
+                        environment.WowAddOnsDirectory,
+                        ["ForeverBag"],
+                        ResetSavedVariables: true,
+                        SavedVariablesDirectory:
+                            unsafeSavedVariables)));
+
+        Assert.Contains(
+            "WTF/Account",
+            exception.Message,
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task Planner_RejectsUnsafeRuntimeAddonName()
     {
         using var environment =
@@ -390,6 +479,9 @@ public sealed class WowTestInstallTests
                     root,
                     "StudioBackups");
         }
+
+        public string RootDirectory =>
+            root;
 
         public string ProjectDirectory { get; }
 

@@ -55,6 +55,9 @@ public sealed class WowTestInstallPlanner(
                 $"WoW AddOns directory does not exist: '{wowAddOnsDirectory}'.");
         }
 
+        RequireWowAddOnsDirectory(
+            wowAddOnsDirectory);
+
         var addonNames =
             request.RuntimeAddons
                 .Select(
@@ -137,15 +140,8 @@ public sealed class WowTestInstallPlanner(
                     $"SavedVariables directory does not exist: '{savedVariablesDirectory}'.");
             }
 
-            if (!string.Equals(
-                    Path.GetFileName(
-                        savedVariablesDirectory),
-                    "SavedVariables",
-                    StringComparison.OrdinalIgnoreCase))
-            {
-                throw new InvalidDataException(
-                    "Configured SavedVariables path must point directly to a SavedVariables directory.");
-            }
+            RequireAccountSavedVariablesDirectory(
+                savedVariablesDirectory);
 
             savedVariablesFiles =
                 DiscoverSavedVariablesFiles(
@@ -169,6 +165,74 @@ public sealed class WowTestInstallPlanner(
             savedVariablesDirectory,
             requestedBackupRoot,
             savedVariablesFiles);
+    }
+
+    private static void RequireWowAddOnsDirectory(
+        string wowAddOnsDirectory)
+    {
+        if (!string.Equals(
+                Path.GetFileName(
+                    wowAddOnsDirectory),
+                "AddOns",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidDataException(
+                "Configured WoW AddOns path must point directly to an Interface/AddOns directory.");
+        }
+
+        var interfaceDirectory =
+            Directory.GetParent(
+                wowAddOnsDirectory);
+
+        if (interfaceDirectory is null ||
+            !string.Equals(
+                interfaceDirectory.Name,
+                "Interface",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidDataException(
+                "Configured WoW AddOns path must point directly to an Interface/AddOns directory.");
+        }
+    }
+
+    private static void RequireAccountSavedVariablesDirectory(
+        string savedVariablesDirectory)
+    {
+        if (!string.Equals(
+                Path.GetFileName(
+                    savedVariablesDirectory),
+                "SavedVariables",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidDataException(
+                "Configured SavedVariables path must point directly to a WTF/Account/<account>/SavedVariables directory.");
+        }
+
+        var accountDirectory =
+            Directory.GetParent(
+                savedVariablesDirectory);
+
+        var accountRootDirectory =
+            accountDirectory?.Parent;
+
+        var wtfDirectory =
+            accountRootDirectory?.Parent;
+
+        if (accountDirectory is null ||
+            accountRootDirectory is null ||
+            wtfDirectory is null ||
+            !string.Equals(
+                accountRootDirectory.Name,
+                "Account",
+                StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(
+                wtfDirectory.Name,
+                "WTF",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidDataException(
+                "Configured SavedVariables path must point directly to a WTF/Account/<account>/SavedVariables directory.");
+        }
     }
 
     private static IEnumerable<WowSavedVariablesFile>
