@@ -66,24 +66,6 @@ public sealed record CurseForgeProject(
 }
 
 
-public sealed record CurseForgeGameVersionType(
-    int Id,
-    int GameId,
-    string Name,
-    string Slug);
-
-public sealed record CurseForgeGameVersion(
-    int Id,
-    string Name,
-    string Slug,
-    int TypeId,
-    string TypeName,
-    string TypeSlug);
-
-public sealed record CurseForgeGameVersionCatalog(
-    IReadOnlyList<CurseForgeGameVersionType> Types,
-    IReadOnlyList<CurseForgeGameVersion> Versions);
-
 public enum CurseForgeFileReleaseType
 {
     Release,
