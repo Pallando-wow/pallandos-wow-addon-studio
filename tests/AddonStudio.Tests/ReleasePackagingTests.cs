@@ -194,6 +194,14 @@ public sealed class ReleasePackagingTests
 
         Assert.True(
             result.SizeBytes > 0);
+        Assert.Equal(
+            64,
+            result.Sha256.Length);
+        Assert.All(
+            result.Sha256,
+            character =>
+                Assert.True(
+                    char.IsAsciiHexDigit(character)));
 
         using var archive =
             ZipFile.OpenRead(
@@ -273,6 +281,9 @@ public sealed class ReleasePackagingTests
         Assert.Equal(
             firstBytes,
             secondBytes);
+        Assert.Equal(
+            first.Sha256,
+            second.Sha256);
     }
 
     [Fact]
