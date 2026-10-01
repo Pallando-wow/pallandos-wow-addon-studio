@@ -5,6 +5,38 @@ namespace AddonStudio.Platforms.CurseForge;
 public sealed class CurseForgeUploadPlanService(
     ReleaseArtifactManifestService artifactManifestService)
 {
+    public Task<CurseForgeUploadPlan> CreateAsync(
+        string projectDirectory,
+        string version,
+        int projectId,
+        CurseForgeReleaseSettings settings,
+        string changelog,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(
+            settings);
+
+        if (!string.Equals(
+                settings.Version,
+                version?.Trim(),
+                StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidDataException(
+                $"CurseForge release settings version '{settings.Version}' does not match release '{version?.Trim()}'.");
+        }
+
+        return CreateAsync(
+            projectDirectory,
+            version,
+            projectId,
+            settings.GameVersionIds,
+            changelog,
+            settings.ReleaseType,
+            settings.IsMarkedForManualRelease,
+            settings.DisplayName,
+            cancellationToken);
+    }
+
     public async Task<CurseForgeUploadPlan> CreateAsync(
         string projectDirectory,
         string version,
