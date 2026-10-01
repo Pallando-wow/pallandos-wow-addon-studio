@@ -15,19 +15,24 @@ public sealed class CurseForgeUploadPlanService(
     {
         ArgumentNullException.ThrowIfNull(
             settings);
+        ArgumentException.ThrowIfNullOrWhiteSpace(
+            version);
+
+        var normalizedVersion =
+            version.Trim();
 
         if (!string.Equals(
                 settings.Version,
-                version?.Trim(),
+                normalizedVersion,
                 StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidDataException(
-                $"CurseForge release settings version '{settings.Version}' does not match release '{version?.Trim()}'.");
+                $"CurseForge release settings version '{settings.Version}' does not match release '{normalizedVersion}'.");
         }
 
         return CreateAsync(
             projectDirectory,
-            version,
+            normalizedVersion,
             projectId,
             settings.GameVersionIds,
             changelog,
