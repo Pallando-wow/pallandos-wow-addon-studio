@@ -81,6 +81,102 @@ public sealed class CurseForgeUploadPlanTests
     }
 
     [Fact]
+    public async Task Plan_CanBeCreatedFromReleaseSettings()
+    {
+        using var project =
+            new TemporaryProject();
+
+        project.CreateRelease(
+            "1.1.0");
+
+        var artifactService =
+            new ReleaseArtifactManifestService();
+
+        var workflow =
+            new ReleaseWorkflowService(
+                new ReleasePreparationService(),
+                new ReleasePackageBuilder(),
+                artifactService);
+
+        await workflow.PrepareAsync(
+            new ReleasePreparationRequest(
+                project.Path,
+                CreateManifest(),
+                "1.1.0",
+                CurseForgeProjectVerified: true),
+            buildPackage: true);
+
+        var settings =
+            new CurseForgeReleaseSettings
+            {
+                Version =
+                    "1.1.0",
+                GameVersionIds =
+                    [13001, 12919],
+                ReleaseType =
+                    CurseForgeFileReleaseType.Beta,
+                IsMarkedForManualRelease =
+                    true,
+                DisplayName =
+                    "ForeverBag 1.1.0 Beta"
+            };
+
+        var plan =
+            await new CurseForgeUploadPlanService(
+                    artifactService)
+                .CreateAsync(
+                    project.Path,
+                    "1.1.0",
+                    1712846,
+                    settings,
+                    "Changes");
+
+        Assert.Equal(
+            [13001, 12919],
+            plan.GameVersionIds);
+        Assert.Equal(
+            CurseForgeFileReleaseType.Beta,
+            plan.ReleaseType);
+        Assert.True(
+            plan.IsMarkedForManualRelease);
+        Assert.Equal(
+            "ForeverBag 1.1.0 Beta",
+            plan.DisplayName);
+    }
+
+    [Fact]
+    public async Task Plan_RejectsReleaseSettingsForDifferentVersion()
+    {
+        using var project =
+            new TemporaryProject();
+
+        project.CreateRelease(
+            "1.1.0");
+
+        var service =
+            new CurseForgeUploadPlanService(
+                new ReleaseArtifactManifestService());
+
+        var settings =
+            new CurseForgeReleaseSettings
+            {
+                Version =
+                    "1.2.0",
+                GameVersionIds =
+                    [12919]
+            };
+
+        await Assert.ThrowsAsync<
+            InvalidDataException>(
+                () => service.CreateAsync(
+                    project.Path,
+                    "1.1.0",
+                    1712846,
+                    settings,
+                    "Changes"));
+    }
+
+    [Fact]
     public async Task Plan_RejectsMissingGameVersionSelection()
     {
         using var project =
