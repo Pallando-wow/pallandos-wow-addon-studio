@@ -7,6 +7,7 @@ public sealed record ReleaseHistoryEntry(
     string Version,
     string DirectoryPath,
     bool HasChangelog,
+    bool HasArtifactManifest,
     IReadOnlyList<string> PackageFiles);
 
 public sealed class ReleaseHistoryService
@@ -48,6 +49,10 @@ public sealed class ReleaseHistoryService
                             directory,
                             PublishingContentLayout.GetFileName(
                                 PublishingContentKind.Changelog))),
+                    File.Exists(
+                        Path.Combine(
+                            directory,
+                            ReleaseArtifactManifestService.FileName)),
                     Directory
                         .EnumerateFiles(
                             directory,
