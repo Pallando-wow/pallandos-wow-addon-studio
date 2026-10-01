@@ -316,7 +316,11 @@ public sealed class ReleasePublishingWorkflowIntegrationTests
                             package.Sha256)));
 
         Assert.Contains(
-            "preflight",
+            "Artifact:",
+            exception.Message,
+            StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(
+            "size mismatch",
             exception.Message,
             StringComparison.OrdinalIgnoreCase);
         Assert.Equal(
