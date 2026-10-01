@@ -30,21 +30,46 @@ public sealed class ReleaseArtifactManifestService
     {
         ArgumentNullException.ThrowIfNull(package);
 
+        var normalizedVersion =
+            version?.Trim();
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(
+            normalizedVersion);
+
+        var packageFileName =
+            ReleasePathRules
+                .RequireSimpleZipFileName(
+                    package.FileName);
+
+        if (package.SizeBytes < 0)
+        {
+            throw new InvalidDataException(
+                "Release package size must not be negative.");
+        }
+
+        if (!IsSha256(
+                package.Sha256))
+        {
+            throw new InvalidDataException(
+                "Release package SHA-256 is invalid.");
+        }
+
         var path =
             GetManifestPath(
                 projectDirectory,
-                version);
+                normalizedVersion);
 
         var manifest =
             new ReleaseArtifactManifest
             {
-                Version = version.Trim(),
+                Version =
+                    normalizedVersion,
                 PackageFileName =
-                    package.FileName,
+                    packageFileName,
                 SizeBytes =
                     package.SizeBytes,
                 Sha256 =
-                    package.Sha256,
+                    package.Sha256.ToLowerInvariant(),
                 Entries =
                     package.Entries
                         .OrderBy(
@@ -60,23 +85,49 @@ public sealed class ReleaseArtifactManifestService
         Directory.CreateDirectory(
             directory);
 
-        await using var stream =
-            new FileStream(
+        var temporaryPath =
+            path +
+            ".tmp-" +
+            Guid.NewGuid().ToString("N");
+
+        try
+        {
+            await using (
+                var stream =
+                    new FileStream(
+                        temporaryPath,
+                        FileMode.CreateNew,
+                        FileAccess.Write,
+                        FileShare.None,
+                        81920,
+                        useAsync: true))
+            {
+                await JsonSerializer.SerializeAsync(
+                    stream,
+                    manifest,
+                    SerializerOptions,
+                    cancellationToken);
+
+                await stream.FlushAsync(
+                    cancellationToken);
+            }
+
+            File.Move(
+                temporaryPath,
                 path,
-                FileMode.Create,
-                FileAccess.Write,
-                FileShare.None,
-                81920,
-                useAsync: true);
+                overwrite: true);
+        }
+        catch
+        {
+            if (File.Exists(
+                    temporaryPath))
+            {
+                File.Delete(
+                    temporaryPath);
+            }
 
-        await JsonSerializer.SerializeAsync(
-            stream,
-            manifest,
-            SerializerOptions,
-            cancellationToken);
-
-        await stream.FlushAsync(
-            cancellationToken);
+            throw;
+        }
 
         return path;
     }
