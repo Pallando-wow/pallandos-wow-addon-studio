@@ -140,6 +140,15 @@ public partial class MainWindowViewModel(
     private string statusMessage = "Ready";
 
     [ObservableProperty]
+    private string installFeedbackMessage = string.Empty;
+
+    [ObservableProperty]
+    private bool installFeedbackIsSuccess;
+
+    [ObservableProperty]
+    private bool installFeedbackIsError;
+
+    [ObservableProperty]
     private string? currentProjectName;
 
     [ObservableProperty]
@@ -1952,6 +1961,13 @@ public partial class MainWindowViewModel(
     [RelayCommand]
     private async Task InstallForTestingAsync()
     {
+        InstallFeedbackMessage =
+            string.Empty;
+        InstallFeedbackIsSuccess =
+            false;
+        InstallFeedbackIsError =
+            false;
+
         if (SetupRequired)
         {
             ShowSettings();
@@ -1962,30 +1978,53 @@ public partial class MainWindowViewModel(
             string.IsNullOrWhiteSpace(
                 CurrentProjectDirectory))
         {
-            StatusMessage =
+            const string message =
                 "Open a project before installing it for testing.";
+
+            StatusMessage =
+                message;
+            InstallFeedbackMessage =
+                $"Installation fehlgeschlagen: {message}";
+            InstallFeedbackIsError =
+                true;
             return;
         }
 
         await RunOperationAsync(async () =>
         {
-            var settings =
-                settingsStore.Load();
+            try
+            {
+                var settings =
+                    settingsStore.Load();
 
-            var result =
-                await wowTestInstallCoordinatorService.InstallAsync(
-                    CurrentProjectDirectory,
-                    currentProject.Manifest,
-                    settings,
-                    cleanTest: false);
+                var result =
+                    await wowTestInstallCoordinatorService.InstallAsync(
+                        CurrentProjectDirectory,
+                        currentProject.Manifest,
+                        settings,
+                        cleanTest: false);
 
-            var installedAddons =
-                string.Join(
-                    ", ",
-                    result.InstalledAddons);
+                var installedAddons =
+                    string.Join(
+                        ", ",
+                        result.InstalledAddons);
 
-            StatusMessage =
-                $"Installed for testing: {installedAddons}. SavedVariables kept.";
+                StatusMessage =
+                    $"Installed for testing: {installedAddons}. SavedVariables kept.";
+
+                InstallFeedbackMessage =
+                    $"Installiert: {installedAddons}. SavedVariables wurden beibehalten.";
+                InstallFeedbackIsSuccess =
+                    true;
+            }
+            catch (Exception exception)
+            {
+                InstallFeedbackMessage =
+                    $"Installation fehlgeschlagen: {exception.Message}";
+                InstallFeedbackIsError =
+                    true;
+                throw;
+            }
         });
     }
 
