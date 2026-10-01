@@ -184,8 +184,91 @@ public sealed class CurseForgePublicationRecordService(
                 $"Unsupported CurseForge publication schema version '{record.SchemaVersion}'.");
         }
 
+        var normalizedVersion =
+            version.Trim();
+
+        if (string.IsNullOrWhiteSpace(
+                record.Version) ||
+            !string.Equals(
+                record.Version,
+                normalizedVersion,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidDataException(
+                $"CurseForge publication version '{record.Version}' does not match release directory '{normalizedVersion}'.");
+        }
+
+        if (record.ProjectId <= 0 ||
+            record.FileId <= 0)
+        {
+            throw new InvalidDataException(
+                "CurseForge publication record contains invalid project or file ids.");
+        }
+
+        if (!IsSimpleZipFileName(
+                record.PackageFileName))
+        {
+            throw new InvalidDataException(
+                "CurseForge publication package file name is invalid.");
+        }
+
+        if (!IsSha256(
+                record.ArtifactSha256))
+        {
+            throw new InvalidDataException(
+                "CurseForge publication artifact SHA-256 is invalid.");
+        }
+
+        if (record.GameVersionIds.Count == 0 ||
+            record.GameVersionIds.Any(
+                id => id <= 0))
+        {
+            throw new InvalidDataException(
+                "CurseForge publication record contains invalid game version ids.");
+        }
+
+        if (record.ReleaseType is not
+            ("release" or "beta" or "alpha"))
+        {
+            throw new InvalidDataException(
+                $"CurseForge publication release type '{record.ReleaseType}' is invalid.");
+        }
+
         return record;
     }
+
+    private static bool IsSimpleZipFileName(
+        string? fileName)
+    {
+        if (string.IsNullOrWhiteSpace(
+                fileName))
+        {
+            return false;
+        }
+
+        var value =
+            fileName.Trim();
+
+        return string.Equals(
+                Path.GetFileName(
+                    value),
+                value,
+                StringComparison.Ordinal) &&
+            !value.Contains(
+                '/') &&
+            !value.Contains(
+                '\\') &&
+            value.EndsWith(
+                ".zip",
+                StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsSha256(
+        string? value) =>
+        value is { Length: 64 } &&
+        value.All(character =>
+            char.IsAsciiHexDigit(
+                character));
 
     public string GetPath(
         string projectDirectory,

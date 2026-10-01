@@ -125,6 +125,36 @@ public sealed class ReleaseArtifactManifestService
                 $"Unsupported release artifact schema version '{manifest.SchemaVersion}'.");
         }
 
+        var normalizedVersion =
+            version.Trim();
+
+        if (string.IsNullOrWhiteSpace(
+                manifest.Version) ||
+            !string.Equals(
+                manifest.Version,
+                normalizedVersion,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidDataException(
+                $"Release artifact version '{manifest.Version}' does not match release directory '{normalizedVersion}'.");
+        }
+
+        ReleasePathRules.RequireSimpleZipFileName(
+            manifest.PackageFileName);
+
+        if (manifest.SizeBytes < 0)
+        {
+            throw new InvalidDataException(
+                "Release artifact size must not be negative.");
+        }
+
+        if (!IsSha256(
+                manifest.Sha256))
+        {
+            throw new InvalidDataException(
+                "Release artifact SHA-256 is invalid.");
+        }
+
         return manifest;
     }
 
@@ -279,6 +309,13 @@ public sealed class ReleaseArtifactManifestService
             "Versions",
             versionDirectoryName);
     }
+
+    private static bool IsSha256(
+        string? value) =>
+        value is { Length: 64 } &&
+        value.All(character =>
+            char.IsAsciiHexDigit(
+                character));
 
     private static async Task<string> ComputeSha256Async(
         string path,
