@@ -47,8 +47,7 @@ public sealed class WowTestInstallCoordinatorTests
                 environment.ProjectDirectory,
                 CreateManifest(
                     "ForeverBag",
-                    "ForeverMail",
-                    "ForeverBag"),
+                    "ForeverMail"),
                 new StudioSettings
                 {
                     WowForeverAddOnsPath =
@@ -247,15 +246,16 @@ public sealed class WowTestInstallCoordinatorTests
                 new FakeProcessDetector()));
 
     private static ProjectManifest CreateManifest(
-        params string[] addons) =>
-        CreateManifest(
-            addons[0],
-            addons);
+        params string[] addons)
+    {
+        if (addons.Length == 0)
+        {
+            throw new ArgumentException(
+                "At least one runtime addon is required.",
+                nameof(addons));
+        }
 
-    private static ProjectManifest CreateManifest(
-        string primaryAddon,
-        params string[] addons) =>
-        new()
+        return new ProjectManifest
         {
             Project =
                 new ProjectIdentity
@@ -268,11 +268,12 @@ public sealed class WowTestInstallCoordinatorTests
                 new RuntimeLayout
                 {
                     PrimaryAddon =
-                        primaryAddon,
+                        addons[0],
                     Addons =
                         addons
                 }
         };
+    }
 
     private sealed class FakeProcessDetector :
         IWowClientProcessDetector
