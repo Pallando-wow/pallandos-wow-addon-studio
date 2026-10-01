@@ -2013,7 +2013,7 @@ public partial class MainWindowViewModel(
                     $"Installed for testing: {installedAddons}. SavedVariables kept.";
 
                 InstallFeedbackMessage =
-                    $"Installiert: {installedAddons}. SavedVariables wurden beibehalten.";
+                    $"Installed: {installedAddons}. SavedVariables kept.";
                 InstallFeedbackIsSuccess =
                     true;
             }
