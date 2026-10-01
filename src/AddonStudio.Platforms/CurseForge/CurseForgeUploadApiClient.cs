@@ -1,4 +1,5 @@
 using System.Net.Http.Headers;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 
@@ -106,6 +107,10 @@ public sealed class CurseForgeUploadApiClient
                 plan.PackagePath);
         }
 
+        await VerifyPlannedPackageAsync(
+            plan,
+            cancellationToken);
+
         var metadata =
             new UploadMetadata
             {
@@ -202,6 +207,50 @@ public sealed class CurseForgeUploadApiClient
 
         return new CurseForgeUploadResult(
             result.Id);
+    }
+
+    private static async Task VerifyPlannedPackageAsync(
+        CurseForgeUploadPlan plan,
+        CancellationToken cancellationToken)
+    {
+        var fileInfo =
+            new FileInfo(
+                plan.PackagePath);
+
+        if (fileInfo.Length !=
+            plan.FileLength)
+        {
+            throw new InvalidDataException(
+                $"CurseForge upload package size changed after planning. Expected {plan.FileLength}, actual {fileInfo.Length}.");
+        }
+
+        await using var stream =
+            new FileStream(
+                plan.PackagePath,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                81920,
+                useAsync: true);
+
+        var hash =
+            await SHA256.HashDataAsync(
+                stream,
+                cancellationToken);
+
+        var sha256 =
+            Convert.ToHexString(
+                hash)
+                .ToLowerInvariant();
+
+        if (!string.Equals(
+                sha256,
+                plan.ArtifactSha256,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidDataException(
+                "CurseForge upload package SHA-256 changed after planning.");
+        }
     }
 
     private static HttpRequestMessage CreateRequest(
