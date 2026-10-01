@@ -82,21 +82,22 @@ public sealed class ReleasePackageBuilder
 
         try
         {
-            await using var stream =
-                new FileStream(
-                    temporaryPackagePath,
-                    FileMode.CreateNew,
-                    FileAccess.ReadWrite,
-                    FileShare.None,
-                    81920,
-                    useAsync: true);
-
-            using (
-                var archive = new ZipArchive(
-                    stream,
-                    ZipArchiveMode.Create,
-                    leaveOpen: true))
             {
+                await using var stream =
+                    new FileStream(
+                        temporaryPackagePath,
+                        FileMode.CreateNew,
+                        FileAccess.ReadWrite,
+                        FileShare.None,
+                        81920,
+                        useAsync: true);
+
+                using (
+                    var archive = new ZipArchive(
+                        stream,
+                        ZipArchiveMode.Create,
+                        leaveOpen: true))
+                {
                 foreach (var addon in runtimeAddons)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -169,11 +170,12 @@ public sealed class ReleasePackageBuilder
                         entries.Add(
                             entryName);
                     }
+                    }
                 }
-            }
 
-            await stream.FlushAsync(
-                cancellationToken);
+                await stream.FlushAsync(
+                    cancellationToken);
+            }
 
             if (entries.Count == 0)
             {
