@@ -85,8 +85,8 @@ public sealed class ReleasePreparationService
         try
         {
             _ =
-                PublishingContentLayout
-                    .GetReleaseChangelogRelativePath(
+                ReleasePathRules
+                    .RequireVersionDirectoryName(
                         version);
         }
         catch (ArgumentException)
