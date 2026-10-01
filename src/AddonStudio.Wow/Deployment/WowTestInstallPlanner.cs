@@ -187,10 +187,18 @@ public sealed class WowTestInstallPlanner(
                 targetDirectory,
                 addonName + ".toc");
 
+        if (!Directory.Exists(
+                targetDirectory))
+        {
+            return;
+        }
+
         if (!File.Exists(
                 installedTocPath))
         {
-            return;
+            throw new InvalidDataException(
+                $"Installed addon '{addonName}' does not contain the expected .toc file '{addonName}.toc'. " +
+                "Installation stopped because the installed version cannot be verified safely.");
         }
 
         var installedToc =
