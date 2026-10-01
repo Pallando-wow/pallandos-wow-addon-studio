@@ -893,6 +893,54 @@
                                         </Grid>
                                     </Border>
 
+                                    <Border IsVisible="{Binding InstallFeedbackIsSuccess}"
+                                            Margin="0,12,0,0"
+                                            Padding="14"
+                                            CornerRadius="8"
+                                            BorderThickness="1"
+                                            BorderBrush="#2E7D4A"
+                                            Background="#173A23">
+                                        <Grid ColumnDefinitions="Auto,*"
+                                              ColumnSpacing="12">
+                                            <TextBlock Grid.Column="0"
+                                                       VerticalAlignment="Top"
+                                                       FontSize="18"
+                                                       FontWeight="Bold"
+                                                       Text="✓" />
+                                            <StackPanel Grid.Column="1"
+                                                        Spacing="3">
+                                                <TextBlock FontWeight="SemiBold"
+                                                           Text="Installation erfolgreich" />
+                                                <TextBlock TextWrapping="Wrap"
+                                                           Text="{Binding InstallFeedbackMessage}" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+
+                                    <Border IsVisible="{Binding InstallFeedbackIsError}"
+                                            Margin="0,12,0,0"
+                                            Padding="14"
+                                            CornerRadius="8"
+                                            BorderThickness="1"
+                                            BorderBrush="#A9444F"
+                                            Background="#451F24">
+                                        <Grid ColumnDefinitions="Auto,*"
+                                              ColumnSpacing="12">
+                                            <TextBlock Grid.Column="0"
+                                                       VerticalAlignment="Top"
+                                                       FontSize="18"
+                                                       FontWeight="Bold"
+                                                       Text="!" />
+                                            <StackPanel Grid.Column="1"
+                                                        Spacing="3">
+                                                <TextBlock FontWeight="SemiBold"
+                                                           Text="Installation fehlgeschlagen" />
+                                                <TextBlock TextWrapping="Wrap"
+                                                           Text="{Binding InstallFeedbackMessage}" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+
                                     <WrapPanel Orientation="Horizontal">
                                         <StackPanel Width="760"
                                                     Margin="0,0,20,16"
