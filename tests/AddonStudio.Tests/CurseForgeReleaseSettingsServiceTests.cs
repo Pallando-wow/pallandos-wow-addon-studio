@@ -37,7 +37,7 @@ public sealed class CurseForgeReleaseSettingsServiceTests
                 path);
 
         Assert.Contains(
-            ""releaseType": "beta"",
+            "\"releaseType\": \"beta\"",
             raw,
             StringComparison.Ordinal);
         Assert.DoesNotContain(
