@@ -178,27 +178,24 @@ public sealed class CurseForgeUploadPlanTests
     }
 
     [Fact]
-    public void UploadEnums_MatchCurseForgeNumericValues()
+    public void UploadPlan_UsesUploadApiWireSemantics()
     {
         Assert.Equal(
-            1,
-            (int)CurseForgeFileReleaseType.Release);
+            "release",
+            CurseForgeFileReleaseType.Release
+                .ToWireValue());
         Assert.Equal(
-            2,
-            (int)CurseForgeFileReleaseType.Beta);
+            "beta",
+            CurseForgeFileReleaseType.Beta
+                .ToWireValue());
         Assert.Equal(
-            3,
-            (int)CurseForgeFileReleaseType.Alpha);
-
+            "alpha",
+            CurseForgeFileReleaseType.Alpha
+                .ToWireValue());
         Assert.Equal(
-            1,
-            (int)CurseForgeChangelogMarkupType.Text);
-        Assert.Equal(
-            2,
-            (int)CurseForgeChangelogMarkupType.Html);
-        Assert.Equal(
-            3,
-            (int)CurseForgeChangelogMarkupType.Markdown);
+            "markdown",
+            CurseForgeChangelogMarkupType.Markdown
+                .ToWireValue());
     }
 
     private static ProjectManifest CreateManifest() =>
