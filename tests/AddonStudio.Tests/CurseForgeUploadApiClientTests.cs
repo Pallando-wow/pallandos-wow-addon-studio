@@ -1,4 +1,5 @@
 using System.Net;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using AddonStudio.Platforms.CurseForge;
@@ -87,9 +88,18 @@ public sealed class CurseForgeUploadApiClientTests
             Path.GetDirectoryName(
                 packagePath)!);
 
+        byte[] packageBytes =
+            [0x50, 0x4B, 0x03, 0x04];
+
         await File.WriteAllBytesAsync(
             packagePath,
-            [0x50, 0x4B, 0x03, 0x04]);
+            packageBytes);
+
+        var packageSha256 =
+            Convert.ToHexString(
+                SHA256.HashData(
+                    packageBytes))
+                .ToLowerInvariant();
 
         try
         {
@@ -259,6 +269,108 @@ public sealed class CurseForgeUploadApiClientTests
     }
 
     [Fact]
+    public async Task UploadFileAsync_RejectsPackageChangedAfterPlanning()
+    {
+        var packagePath =
+            Path.Combine(
+                Path.GetTempPath(),
+                "AddonStudio.Tests",
+                Guid.NewGuid().ToString("N"),
+                "ForeverBag.zip");
+
+        Directory.CreateDirectory(
+            Path.GetDirectoryName(
+                packagePath)!);
+
+        byte[] originalBytes =
+            [1, 2, 3];
+
+        await File.WriteAllBytesAsync(
+            packagePath,
+            originalBytes);
+
+        var plannedSha256 =
+            Convert.ToHexString(
+                SHA256.HashData(
+                    originalBytes))
+                .ToLowerInvariant();
+
+        var requestSent =
+            false;
+
+        try
+        {
+            await File.WriteAllBytesAsync(
+                packagePath,
+                [1, 2, 4]);
+
+            var handler =
+                new AsyncStubHandler(
+                    (_, _) =>
+                    {
+                        requestSent =
+                            true;
+
+                        return Task.FromResult(
+                            Json(
+                                """
+                                {
+                                  "id": 20402
+                                }
+                                """));
+                    });
+
+            var client =
+                new CurseForgeUploadApiClient(
+                    new HttpClient(handler)
+                    {
+                        BaseAddress =
+                            new Uri(
+                                "https://wow.curseforge.com/")
+                    });
+
+            var exception =
+                await Assert.ThrowsAsync<
+                    InvalidDataException>(
+                    () => client.UploadFileAsync(
+                        "upload-token",
+                        new CurseForgeUploadPlan(
+                            1712846,
+                            packagePath,
+                            "ForeverBag.zip",
+                            "ForeverBag",
+                            "Changes",
+                            CurseForgeChangelogMarkupType.Markdown,
+                            [12919],
+                            CurseForgeFileReleaseType.Release,
+                            originalBytes.Length,
+                            false,
+                            plannedSha256)));
+
+            Assert.Contains(
+                "SHA-256",
+                exception.Message,
+                StringComparison.OrdinalIgnoreCase);
+            Assert.False(
+                requestSent);
+        }
+        finally
+        {
+            var directory =
+                Path.GetDirectoryName(
+                    packagePath)!;
+
+            if (Directory.Exists(
+                    directory))
+            {
+                Directory.Delete(
+                    directory,
+                    recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task UploadFileAsync_ReportsApiErrorBody()
     {
         var packagePath =
@@ -272,9 +384,18 @@ public sealed class CurseForgeUploadApiClientTests
             Path.GetDirectoryName(
                 packagePath)!);
 
+        byte[] packageBytes =
+            [1, 2, 3];
+
         await File.WriteAllBytesAsync(
             packagePath,
-            [1, 2, 3]);
+            packageBytes);
+
+        var packageSha256 =
+            Convert.ToHexString(
+                SHA256.HashData(
+                    packageBytes))
+                .ToLowerInvariant();
 
         try
         {
@@ -315,9 +436,9 @@ public sealed class CurseForgeUploadApiClientTests
                             CurseForgeChangelogMarkupType.Markdown,
                             [12919],
                             CurseForgeFileReleaseType.Release,
-                            3,
+                            packageBytes.Length,
                             false,
-                            new string('a', 64))));
+                            packageSha256)));
 
             Assert.Equal(
                 HttpStatusCode.Forbidden,
