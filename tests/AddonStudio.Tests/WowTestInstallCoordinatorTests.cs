@@ -150,6 +150,7 @@ public sealed class WowTestInstallCoordinatorTests
             "ForeverBag",
             """
             ## Interface: 16001
+            ## Version: 1.1.0
             ForeverBag.lua
             """,
             ("ForeverBag.lua", "-- new"));
@@ -160,6 +161,16 @@ public sealed class WowTestInstallCoordinatorTests
                     environment.WowAddOnsDirectory,
                     "ForeverBag"))
                 .FullName;
+
+        File.WriteAllText(
+            System.IO.Path.Combine(
+                targetDirectory,
+                "ForeverBag.toc"),
+            """
+            ## Interface: 16001
+            ## Version: 1.0.0
+            ForeverBag.lua
+            """);
 
         var targetFile =
             System.IO.Path.Combine(
