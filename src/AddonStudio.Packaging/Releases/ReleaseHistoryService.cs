@@ -59,7 +59,52 @@ public sealed class ReleaseHistoryService
                         .ToArray()))
             .OrderByDescending(
                 entry => entry.Version,
-                StringComparer.OrdinalIgnoreCase)
+                ReleaseVersionComparer.Instance)
             .ToArray();
+    }
+}
+
+
+internal sealed class ReleaseVersionComparer :
+    IComparer<string>
+{
+    public static ReleaseVersionComparer Instance { get; } =
+        new();
+
+    public int Compare(
+        string? left,
+        string? right)
+    {
+        if (ReferenceEquals(
+                left,
+                right))
+        {
+            return 0;
+        }
+
+        if (left is null)
+        {
+            return -1;
+        }
+
+        if (right is null)
+        {
+            return 1;
+        }
+
+        if (Version.TryParse(
+                left,
+                out var leftVersion) &&
+            Version.TryParse(
+                right,
+                out var rightVersion))
+        {
+            return leftVersion.CompareTo(
+                rightVersion);
+        }
+
+        return StringComparer.OrdinalIgnoreCase.Compare(
+            left,
+            right);
     }
 }
