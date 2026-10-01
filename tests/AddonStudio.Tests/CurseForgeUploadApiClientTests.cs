@@ -246,7 +246,7 @@ public sealed class CurseForgeUploadApiClientTests
                         CurseForgeFileReleaseType.Release,
                         packageBytes.Length,
                         false,
-                        packageSha256)));
+                        packageSha256));
 
             Assert.Equal(
                 20402,
