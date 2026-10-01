@@ -158,10 +158,15 @@ public sealed class ReleaseArtifactManifestService
                 projectDirectory,
                 version);
 
+        var packageFileName =
+            ReleasePathRules
+                .RequireSimpleZipFileName(
+                    manifest.PackageFileName);
+
         var packagePath =
             Path.Combine(
                 versionDirectory,
-                manifest.PackageFileName);
+                packageFileName);
 
         if (!File.Exists(
                 packagePath))
@@ -263,11 +268,16 @@ public sealed class ReleaseArtifactManifestService
                 $"Directory '{projectPath}' is not a managed Studio project.");
         }
 
+        var versionDirectoryName =
+            ReleasePathRules
+                .RequireVersionDirectoryName(
+                    version);
+
         return Path.Combine(
             projectPath,
             ProjectLayout.ReleaseDirectoryName,
             "Versions",
-            version.Trim());
+            versionDirectoryName);
     }
 
     private static async Task<string> ComputeSha256Async(
