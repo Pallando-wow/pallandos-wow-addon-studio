@@ -145,32 +145,32 @@ public sealed class CurseForgeUploadApiClientTests
                         Assert.Equal(
                             "## Changes\n- Fixed something",
                             root.GetProperty(
-                                    "Changelog")
+                                    "changelog")
                                 .GetString());
                         Assert.Equal(
                             "markdown",
                             root.GetProperty(
-                                    "ChangelogType")
+                                    "changelogType")
                                 .GetString());
                         Assert.Equal(
                             "ForeverBag 1.1.0",
                             root.GetProperty(
-                                    "DisplayName")
+                                    "displayName")
                                 .GetString());
                         Assert.Equal(
                             "release",
                             root.GetProperty(
-                                    "ReleaseType")
+                                    "releaseType")
                                 .GetString());
                         Assert.False(
                             root.GetProperty(
-                                    "IsMarkedForManualRelease")
+                                    "isMarkedForManualRelease")
                                 .GetBoolean());
 
                         Assert.Equal(
                             [12919, 13001],
                             root.GetProperty(
-                                    "GameVersions")
+                                    "gameVersions")
                                 .EnumerateArray()
                                 .Select(element =>
                                     element.GetInt32())
