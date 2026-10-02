@@ -3,6 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="..\AddonStudio.Core\AddonStudio.Core.csproj" />
     <ProjectReference Include="..\AddonStudio.Application\AddonStudio.Application.csproj" />
+    <ProjectReference Include="..\AddonStudio.Packaging\AddonStudio.Packaging.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

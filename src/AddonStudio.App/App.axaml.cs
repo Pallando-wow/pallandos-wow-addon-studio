@@ -12,6 +12,7 @@ using AddonStudio.Media;
 using AddonStudio.Platforms.CurseForge;
 using AddonStudio.Platforms.Security;
 using AddonStudio.Wow.Collector;
+using AddonStudio.Wow.Deployment;
 using AddonStudio.Wow.Projects;
 using AddonStudio.Wow.Toc;
 
@@ -70,6 +71,14 @@ public partial class App : Avalonia.Application
             var pallandoCollectorReader =
                 new PallandoCollectorReader();
 
+            var wowTestInstallCoordinatorService =
+                new WowTestInstallCoordinatorService(
+                    new WowTestInstallWorkflowService(
+                        new WowTestInstallPlanner(
+                            tocDocumentReader),
+                        new WowTestInstallService(),
+                        new SystemWowClientProcessDetector()));
+
             var settingsStore =
                 new JsonStudioSettingsStore();
 
@@ -88,6 +97,7 @@ public partial class App : Avalonia.Application
                     projectMediaService,
                     tocDocumentReader,
                     pallandoCollectorReader,
+                    wowTestInstallCoordinatorService,
                     initialize: true),
             };
         }

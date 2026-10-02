@@ -8,6 +8,7 @@ using AddonStudio.Core.Projects;
 using AddonStudio.Core.Publishing;
 using AddonStudio.Media;
 using AddonStudio.Platforms.CurseForge;
+using AddonStudio.Wow.Deployment;
 using AddonStudio.Wow.Toc;
 using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -114,7 +115,8 @@ public partial class MainWindowViewModel(
     PublishingContentService publishingContentService,
     ProjectMediaService projectMediaService,
     TocDocumentReader tocDocumentReader,
-    IPallandoCollectorReader pallandoCollectorReader) : ViewModelBase
+    IPallandoCollectorReader pallandoCollectorReader,
+    WowTestInstallCoordinatorService wowTestInstallCoordinatorService) : ViewModelBase
 {
     private const string CurseForgeApiKeySecretName =
         "curseforge-api-key";
@@ -136,6 +138,15 @@ public partial class MainWindowViewModel(
 
     [ObservableProperty]
     private string statusMessage = "Ready";
+
+    [ObservableProperty]
+    private string installFeedbackMessage = string.Empty;
+
+    [ObservableProperty]
+    private bool installFeedbackIsSuccess;
+
+    [ObservableProperty]
+    private bool installFeedbackIsError;
 
     [ObservableProperty]
     private string? currentProjectName;
@@ -365,6 +376,7 @@ public partial class MainWindowViewModel(
         ProjectMediaService projectMediaService,
         TocDocumentReader tocDocumentReader,
         IPallandoCollectorReader pallandoCollectorReader,
+        WowTestInstallCoordinatorService wowTestInstallCoordinatorService,
         bool initialize = true)
         : this(
             addonProjectService,
@@ -378,7 +390,8 @@ public partial class MainWindowViewModel(
             publishingContentService,
             projectMediaService,
             tocDocumentReader,
-            pallandoCollectorReader)
+            pallandoCollectorReader,
+            wowTestInstallCoordinatorService)
     {
         var settings = settingsStore.Load();
 
@@ -1946,6 +1959,102 @@ public partial class MainWindowViewModel(
     }
 
     [RelayCommand]
+    private Task InstallForTestingAsync() =>
+        InstallForTestingCoreAsync(
+            cleanTest: false);
+
+    public Task RunCleanInstallForTestingAsync() =>
+        InstallForTestingCoreAsync(
+            cleanTest: true);
+
+    private async Task InstallForTestingCoreAsync(
+        bool cleanTest)
+    {
+        InstallFeedbackMessage =
+            string.Empty;
+        InstallFeedbackIsSuccess =
+            false;
+        InstallFeedbackIsError =
+            false;
+
+        if (SetupRequired)
+        {
+            ShowSettings();
+            return;
+        }
+
+        if (currentProject is null ||
+            string.IsNullOrWhiteSpace(
+                CurrentProjectDirectory))
+        {
+            const string message =
+                "Open a project before installing it for testing.";
+
+            StatusMessage =
+                message;
+            InstallFeedbackMessage =
+                message;
+            InstallFeedbackIsError =
+                true;
+            return;
+        }
+
+        await RunOperationAsync(async () =>
+        {
+            try
+            {
+                var settings =
+                    settingsStore.Load();
+
+                var result =
+                    await wowTestInstallCoordinatorService.InstallAsync(
+                        CurrentProjectDirectory,
+                        currentProject.Manifest,
+                        settings,
+                        cleanTest);
+
+                var installedAddons =
+                    string.Join(
+                        ", ",
+                        result.InstalledAddons);
+
+                if (!cleanTest)
+                {
+                    StatusMessage =
+                        $"Installed for testing: {installedAddons}. SavedVariables kept.";
+
+                    InstallFeedbackMessage =
+                        $"Installed: {installedAddons}. SavedVariables kept.";
+                }
+                else
+                {
+                    var resetCount =
+                        result.ResetSavedVariablesFiles.Count;
+
+                    StatusMessage =
+                        $"Clean test installed: {installedAddons}. Reset {resetCount} SavedVariables file(s).";
+
+                    InstallFeedbackMessage =
+                        resetCount == 0
+                            ? $"Clean test installed: {installedAddons}. No declared SavedVariables files were found to reset."
+                            : $"Clean test installed: {installedAddons}. Reset {resetCount} SavedVariables file(s). Backup: {result.SavedVariablesBackupDirectory}";
+                }
+
+                InstallFeedbackIsSuccess =
+                    true;
+            }
+            catch (Exception exception)
+            {
+                InstallFeedbackMessage =
+                    exception.Message;
+                InstallFeedbackIsError =
+                    true;
+                throw;
+            }
+        });
+    }
+
+    [RelayCommand]
     private void CloseActionTab()
     {
         HasActionTab = false;
@@ -2561,6 +2670,13 @@ public partial class MainWindowViewModel(
             ClearMarkdownDocument();
             ClearPublishingWorkspace();
         }
+
+        InstallFeedbackMessage =
+            string.Empty;
+        InstallFeedbackIsSuccess =
+            false;
+        InstallFeedbackIsError =
+            false;
 
         currentProject = project;
         CurrentProjectName = project.Name;
