@@ -883,13 +883,20 @@
                                                 </Grid>
                                             </StackPanel>
 
-                                            <Button Grid.Column="2"
-                                                    MinWidth="140"
-                                                    HorizontalAlignment="Right"
-                                                    VerticalAlignment="Bottom"
-                                                    Command="{Binding InstallForTestingCommand}"
-                                                    Content="Install Addon"
-                                                    ToolTip.Tip="Install the current addon in WoW for testing" />
+                                            <StackPanel Grid.Column="2"
+                                                        Orientation="Horizontal"
+                                                        HorizontalAlignment="Right"
+                                                        VerticalAlignment="Bottom"
+                                                        Spacing="8">
+                                                <Button MinWidth="140"
+                                                        Command="{Binding InstallForTestingCommand}"
+                                                        Content="Install Addon"
+                                                        ToolTip.Tip="Install the current addon in WoW for testing" />
+                                                <Button MinWidth="110"
+                                                        Click="CleanTestInstall_Click"
+                                                        Content="Clean Test"
+                                                        ToolTip.Tip="Install the addon and reset declared SavedVariables after creating a backup" />
+                                            </StackPanel>
                                         </Grid>
                                     </Border>
 
