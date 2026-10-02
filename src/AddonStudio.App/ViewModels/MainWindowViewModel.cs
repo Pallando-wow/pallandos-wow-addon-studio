@@ -1959,7 +1959,16 @@ public partial class MainWindowViewModel(
     }
 
     [RelayCommand]
-    private async Task InstallForTestingAsync()
+    private Task InstallForTestingAsync() =>
+        InstallForTestingCoreAsync(
+            cleanTest: false);
+
+    public Task RunCleanInstallForTestingAsync() =>
+        InstallForTestingCoreAsync(
+            cleanTest: true);
+
+    private async Task InstallForTestingCoreAsync(
+        bool cleanTest)
     {
         InstallFeedbackMessage =
             string.Empty;
@@ -2002,18 +2011,35 @@ public partial class MainWindowViewModel(
                         CurrentProjectDirectory,
                         currentProject.Manifest,
                         settings,
-                        cleanTest: false);
+                        cleanTest);
 
                 var installedAddons =
                     string.Join(
                         ", ",
                         result.InstalledAddons);
 
-                StatusMessage =
-                    $"Installed for testing: {installedAddons}. SavedVariables kept.";
+                if (!cleanTest)
+                {
+                    StatusMessage =
+                        $"Installed for testing: {installedAddons}. SavedVariables kept.";
 
-                InstallFeedbackMessage =
-                    $"Installed: {installedAddons}. SavedVariables kept.";
+                    InstallFeedbackMessage =
+                        $"Installed: {installedAddons}. SavedVariables kept.";
+                }
+                else
+                {
+                    var resetCount =
+                        result.ResetSavedVariablesFiles.Count;
+
+                    StatusMessage =
+                        $"Clean test installed: {installedAddons}. Reset {resetCount} SavedVariables file(s).";
+
+                    InstallFeedbackMessage =
+                        resetCount == 0
+                            ? $"Clean test installed: {installedAddons}. No declared SavedVariables files were found to reset."
+                            : $"Clean test installed: {installedAddons}. Reset {resetCount} SavedVariables file(s). Backup: {result.SavedVariablesBackupDirectory}";
+                }
+
                 InstallFeedbackIsSuccess =
                     true;
             }
