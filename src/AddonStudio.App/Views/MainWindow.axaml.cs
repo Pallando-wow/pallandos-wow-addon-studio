@@ -284,6 +284,96 @@ public partial class MainWindow : Window
             this);
     }
 
+    private async void CleanTestInstall_Click(
+        object? sender,
+        RoutedEventArgs e)
+    {
+        if (ViewModel is null)
+        {
+            return;
+        }
+
+        if (!await ConfirmCleanTestInstallAsync())
+        {
+            return;
+        }
+
+        await ViewModel.RunCleanInstallForTestingAsync();
+    }
+
+    private async Task<bool> ConfirmCleanTestInstallAsync()
+    {
+        var cancelButton = new Button
+        {
+            Content = "Cancel",
+            MinWidth = 90
+        };
+
+        var cleanTestButton = new Button
+        {
+            Content = "Run Clean Test",
+            MinWidth = 130
+        };
+
+        var dialog = new Window
+        {
+            Title = "Clean test installation",
+            Width = 520,
+            Height = 245,
+            CanResize = false,
+            ShowInTaskbar = false,
+            WindowStartupLocation =
+                WindowStartupLocation.CenterOwner
+        };
+
+        cancelButton.Click +=
+            (_, _) => dialog.Close(false);
+
+        cleanTestButton.Click +=
+            (_, _) => dialog.Close(true);
+
+        dialog.Content = new Border
+        {
+            Padding = new Thickness(20),
+            Child = new StackPanel
+            {
+                Spacing = 14,
+                Children =
+                {
+                    new TextBlock
+                    {
+                        Text = "Run clean test?",
+                        FontSize = 20,
+                        FontWeight = FontWeight.SemiBold
+                    },
+                    new TextBlock
+                    {
+                        Text =
+                            "The current runtime addon(s) will be installed. " +
+                            "SavedVariables files declared by their .toc metadata will be backed up and deleted before the test. " +
+                            "Other SavedVariables files are not touched. WoW must be closed.",
+                        TextWrapping = TextWrapping.Wrap
+                    },
+                    new StackPanel
+                    {
+                        Orientation = Orientation.Horizontal,
+                        HorizontalAlignment =
+                            HorizontalAlignment.Right,
+                        Spacing = 8,
+                        Children =
+                        {
+                            cancelButton,
+                            cleanTestButton
+                        }
+                    }
+                }
+            }
+        };
+
+        return await dialog.ShowDialog<bool>(
+            this);
+    }
+
     private async void SaveSettings_Click(
         object? sender,
         RoutedEventArgs e)
